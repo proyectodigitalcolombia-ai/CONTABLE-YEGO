@@ -2,16 +2,18 @@ const express = require('express');
 const { Sequelize, DataTypes, QueryTypes } = require('sequelize');
 const app = express();
 
+// Middlewares para procesamiento de datos (NODE_VERSION 20)
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Conexión a Base de Datos
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
+// --- MODELO EXTENDIDO (TODOS LOS CAMPOS MANUALES) ---
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -24,6 +26,7 @@ const Finanza = db.define('Finanza', {
   fecha_pago_ant: { type: DataTypes.DATEONLY },
   tipo_cumplido: { type: DataTypes.STRING },
   fecha_cump_virtual: { type: DataTypes.DATEONLY },
+  // Bloque de Documentación
   ent_manifiesto: { type: DataTypes.STRING, defaultValue: 'NO' },
   ent_remesa: { type: DataTypes.STRING, defaultValue: 'NO' },
   ent_hoja_tiempos: { type: DataTypes.STRING, defaultValue: 'NO' },
@@ -33,6 +36,7 @@ const Finanza = db.define('Finanza', {
   ent_tiq_cargue: { type: DataTypes.STRING, defaultValue: 'NO' },
   ent_tiq_descargue: { type: DataTypes.STRING, defaultValue: 'NO' },
   presenta_novedades: { type: DataTypes.STRING, defaultValue: 'NO' },
+  // Bloque de Cierre
   obs_novedad: { type: DataTypes.TEXT },
   valor_descuento: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   fecha_cump_docs: { type: DataTypes.DATEONLY },
@@ -45,173 +49,177 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
+// Ayudante visual para la tabla
+const fV = (v) => {
+  const s = String(v || 'NO').toUpperCase().trim();
+  return s === 'SI' ? '<b style="color:#10b981;">✅ SI</b>' : '<b style="color:#ef4444;">❌ NO</b>';
+};
+
+// --- RUTA PRINCIPAL (LISTADO MASIVO) ---
 app.get('/', async (req, res) => {
   try {
-    // AJUSTE: Se usan comillas dobles para capturar V_FLETE y V_FACTURAR como columnas de LogisV20
-    const sql = `SELECT *, "V_FLETE" AS f_pagar_logis, "V_FACTURAR" AS f_facturar_logis FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
-    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
+    const cargas = await db.query(`SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
     let totalPendiente = 0;
-    let filas = cargas.map(c => {
+    const filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
-      
-      // CAMBIO: Convertimos los valores de LogisV20 a números enteros/decimales puros
-      const fletePagar = Number(c.f_pagar_logis || 0);
-      const fleteFacturar = Number(c.f_facturar_logis || 0);
-      
-      const estadoContable = f.est_pago || "PENDIENTE";
-      if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
+      const flete = Number(f.v_flete || 0);
+      if((f.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += flete;
 
-      const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
+      const td = `padding: 12px 8px; text-align: center; border-right: 1px solid #334155; white-space: nowrap; font-size: 11px;`;
 
       return `
-        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.id}</td>
-          <td style="${tdStyle}">${c.f_doc || '---'}</td>
-          <td style="${tdStyle}">${c.oficina || '---'}</td>
-          <td style="${tdStyle}">${c.orig || '---'}</td>
-          <td style="${tdStyle}">${c.dest || '---'}</td>
-          <td style="${tdStyle}">${c.cli || '---'}</td>
-          <td style="${tdStyle}">${c.cont || '---'}</td>
-          <td style="${tdStyle}">${c.ped || '---'}</td>
-          <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
-          <td style="${tdStyle}">${c.muc || '---'}</td>
-          <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${c.f_act || '---'}</td>
-          <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
-          <td style="${tdStyle}">${f.tipo_anticipo || '---'}</td>
-          <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_ant || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
-          <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${f.ent_manifiesto || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_remesa || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_hoja_tiempos || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_docs_cliente || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_facturas || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tirilla_vacio || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tiq_cargue || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tiq_descargue || 'NO'}</td>
-          <td style="${tdStyle}">${f.presenta_novedades || 'NO'}</td>
-          <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
-          <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_final || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
-          <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
-          <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+        <tr class="fila" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155;">
+          <td style="${td}">${c.id}</td>
+          <td style="${td}">${c.f_doc || ''}</td><td style="${td}">${c.oficina || ''}</td>
+          <td style="${td}">${c.orig || ''}</td><td style="${td}">${c.dest || ''}</td>
+          <td style="${td}">${c.cli || ''}</td><td style="${td}">${c.cont || ''}</td>
+          <td style="${td}">${c.ped || ''}</td>
+          <td style="${td} background:rgba(59,130,246,0.1); font-weight:bold; color:#60a5fa;">${c.placa}</td>
+          <td style="${td}">${c.muc || ''}</td>
+          <td style="${td} color:#10b981;">$${flete.toLocaleString('es-CO')}</td>
+          <td style="${td}">$${Number(f.v_facturar||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">${c.f_act || ''}</td>
+          <td style="${td} color:#fbbf24;">${c.est_real || ''}</td>
+          <td style="${td}">${f.tipo_anticipo || ''}</td>
+          <td style="${td}">$${Number(f.valor_anticipo||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">$${Number(f.sobre_anticipo||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">${f.estado_ant || ''}</td>
+          <td style="${td}">${f.fecha_pago_ant || ''}</td>
+          <td style="${td}">${f.tipo_cumplido || ''}</td>
+          <td style="${td}">${f.fecha_cump_virtual || ''}</td>
+          <td style="${td}">${fV(f.ent_manifiesto)}</td>
+          <td style="${td}">${fV(f.ent_remesa)}</td>
+          <td style="${td}">${fV(f.ent_hoja_tiempos)}</td>
+          <td style="${td}">${fV(f.ent_docs_cliente)}</td>
+          <td style="${td}">${fV(f.ent_facturas)}</td>
+          <td style="${td}">${fV(f.ent_tirilla_vacio)}</td>
+          <td style="${td}">${fV(f.ent_tiq_cargue)}</td>
+          <td style="${td}">${fV(f.ent_tiq_descargue)}</td>
+          <td style="${td}">${fV(f.presenta_novedades)}</td>
+          <td style="${td}">${f.obs_novedad || ''}</td>
+          <td style="${td} color:#ef4444;">$${Number(f.valor_descuento||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">${f.fecha_cump_docs || ''}</td>
+          <td style="${td}">${f.fecha_legalizacion || ''}</td>
+          <td style="${td}">$${Number(f.retefuente||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">$${Number(f.reteica||0).toLocaleString('es-CO')}</td>
+          <td style="${td} background:rgba(16,185,129,0.1); font-weight:bold;">$${Number(f.saldo_a_pagar||0).toLocaleString('es-CO')}</td>
+          <td style="${td}">${f.estado_final || 'PENDIENTE'}</td>
+          <td style="${td}">${f.dias_sin_pagar || 0}</td>
+          <td style="${td}">${f.dias_sin_cumplir || 0}</td>
+          <td style="padding:10px; text-align:center;">
+            <a href="/editar/${c.id}" style="background:#3b82f6; color:white; padding:5px 10px; border-radius:4px; text-decoration:none; font-size:10px; font-weight:bold;">GESTIONAR</a>
           </td>
         </tr>`;
     }).join('');
 
-    const thStyle = `padding: 15px 10px; text-align: center; border-right: 1px solid #475569; border-bottom: 2px solid #3b82f6; white-space: nowrap;`;
-
     res.send(`
-      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
-          <h2 style="margin:0; color: #3b82f6;">YEGO SISTEMA CONTABLE</h2>
-          <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
-            <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
-            <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
+      <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; margin:0; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:20px; border-radius:12px; border:1px solid #334155; margin-bottom:20px;">
+          <h1 style="margin:0; color:#3b82f6;">YEGO FINANZAS <span style="font-weight:100; color:#94a3b8;">| 2026</span></h1>
+          <div style="text-align:right; background:rgba(16,185,129,0.1); padding:10px 20px; border-radius:8px; border:1px solid #10b981;">
+            <small style="color:#10b981; font-weight:bold;">TOTAL POR PAGAR</small><br>
+            <b style="font-size:24px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
-        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline: none;">
-        <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
-          <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 6500px;">
-            <thead style="background:#1e40af; color: white; font-size: 10px; text-transform: uppercase;">
+        <input type="text" id="busc" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:15px; background:#1e293b; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:20px; font-size:16px;">
+        <div style="overflow-x:auto; border-radius:12px; border:1px solid #334155; background:#1e293b;">
+          <table style="width:100%; border-collapse:collapse; min-width:6500px;">
+            <thead style="background:#1e40af; color:white; font-size:10px; text-transform:uppercase;">
               <tr>
-                <th style="${thStyle}">ID</th><th style="${thStyle}">FECHA REGISTRO</th><th style="${thStyle}">OFICINA</th>
-                <th style="${thStyle}">ORIGEN</th><th style="${thStyle}">DESTINO</th><th style="${thStyle}">CLIENTE</th>
-                <th style="${thStyle}">CONTENEDOR</th><th style="${thStyle}">PEDIDO</th><th style="${thStyle}">PLACA</th>
-                <th style="${thStyle}">MUC</th><th style="${thStyle}">VALOR FLETE A PAGAR (LOGIS)</th>
-                <th style="${thStyle}">VALOR FLETE A FACTURAR (LOGIS)</th><th style="${thStyle}">FECHA ACTUALIZACIÓN</th>
-                <th style="${thStyle}">ESTADO FINAL LOGIS</th>
-                <th style="${thStyle}">TIPO DE ANTICIPO</th><th style="${thStyle}">VALOR ANTICIPO</th>
-                <th style="${thStyle}">SOBRE ANTICIPO</th><th style="${thStyle}">ESTADO</th>
-                <th style="${thStyle}">FECHA DE PAGO ANTICIPO</th><th style="${thStyle}">TIPO DE CUMPLIDO</th>
-                <th style="${thStyle}">FECHA CUMPLIDO VIRTUAL</th><th style="${thStyle}">ENTREGA DE MANIFIESTO</th>
-                <th style="${thStyle}">ENTREGA DE REMESA</th><th style="${thStyle}">ENTREGA DE HOJA DE TIEMPOS</th>
-                <th style="${thStyle}">ENTREGA DE DOCUMENTOS CLIENTE</th><th style="${thStyle}">ENTREGA DE FACTURAS</th>
-                <th style="${thStyle}">ENTREGA DE TIRILLA CONTENEDOR VACÍO</th><th style="${thStyle}">ENTREGA DE TIQUETE DE CARGUE (GRANEL)</th>
-                <th style="${thStyle}">ENTREGA DE TIQUETE DE DESCARGUE (GRANEL)</th><th style="${thStyle}">¿EL SERVICIO PRESENTA NOVEDADES?</th>
-                <th style="${thStyle}">OBSERVACION NOVEDAD</th><th style="${thStyle}">VALOR DESCUENTO</th>
-                <th style="${thStyle}">FECHA DE CUMPLIDO DOCUMENTOS</th><th style="${thStyle}">FECHA DE LEGALIZACIÓN</th>
-                <th style="${thStyle}">RETEFUENTE</th><th style="${thStyle}">RETEICA</th>
-                <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO</th>
-                <th style="${thStyle}">DÍAS SIN PAGAR</th><th style="${thStyle}">DÍAS SIN CUMPLIR</th>
-                <th style="${thStyle}">ACCIÓN</th>
+                <th style="padding:15px;">ID</th><th>REGISTRO</th><th>OFICINA</th><th>ORIGEN</th><th>DESTINO</th><th>CLIENTE</th><th>CONT</th><th>PEDIDO</th><th>PLACA</th><th>MUC</th><th>V. FLETE</th><th>V. FACTURAR</th><th>ACTUALIZACION</th><th>LOGISTICO</th><th>T. ANTICIPO</th><th>V. ANTICIPO</th><th>S. ANTICIPO</th><th>E. ANTICIPO</th><th>F. PAGO ANT</th><th>T. CUMPLIDO</th><th>F. VIRTUAL</th><th>MANIF</th><th>REME</th><th>HOJA</th><th>D.CLI</th><th>FACT</th><th>TIRI</th><th>T.CARG</th><th>T.DESC</th><th>NOVED</th><th>OBSERVACION</th><th>DESC</th><th>F. DOCS</th><th>F. LEGA</th><th>RET.F</th><th>RET.I</th><th>SALDO</th><th>ESTADO</th><th>M. PAG</th><th>M. CUM</th><th>ACCION</th>
               </tr>
             </thead>
-            <tbody id="tabla-cargas">${filas}</tbody>
+            <tbody id="tabla">${filas}</tbody>
           </table>
         </div>
         <script>
-          document.getElementById('buscador').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.fila-carga').forEach(fila => {
-              fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
+          document.getElementById('busc').addEventListener('input', (e) => {
+            const v = e.target.value.toLowerCase();
+            document.querySelectorAll('.fila').forEach(tr => {
+              tr.style.display = tr.getAttribute('data-placa').includes(v) ? '' : 'none';
             });
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error: " + err.message); }
+  } catch (e) { res.status(500).send(e.message); }
 });
 
+// --- RUTA DE EDICIÓN (FORMULARIO ROBUSTO) ---
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
+  const iS = `width:100%; padding:10px; background:#0f172a; color:white; border:1px solid #475569; border-radius:6px; margin-top:5px; outline:none; font-size:13px;`;
+  const lS = `font-size:11px; color:#94a3b8; font-weight:bold; text-transform:uppercase;`;
+
   res.send(`
-    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
-      <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${req.params.id}</h2>
-        <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-          <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
-          <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div><label>TIPO ANTICIPO</label><input type="text" name="tipo_anticipo" value="${f.tipo_anticipo||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+    <body style="background:#0f172a; color:white; font-family:sans-serif; padding:20px;">
+      <div style="max-width:1200px; margin:auto; background:#1e293b; padding:40px; border-radius:15px; border:1px solid #3b82f6; box-shadow:0 0 50px rgba(0,0,0,0.5);">
+        <h2 style="text-align:center; color:#3b82f6; margin-bottom:30px;">GESTIÓN INTEGRAL DE CARGA #${req.params.id}</h2>
+        <form action="/guardar/${req.params.id}" method="POST">
           
-          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
-             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (INGRESAR SI/NO)</p>
-             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
-                <label>MANIFIESTO <input type="text" name="ent_manifiesto" value="${f.ent_manifiesto}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>REMESA <input type="text" name="ent_remesa" value="${f.ent_remesa}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>HOJA TIEMPOS <input type="text" name="ent_hoja_tiempos" value="${f.ent_hoja_tiempos}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>DOCS CLIENTE <input type="text" name="ent_docs_cliente" value="${f.ent_docs_cliente}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>FACTURAS <input type="text" name="ent_facturas" value="${f.ent_facturas}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIRILLA VACÍO <input type="text" name="ent_tirilla_vacio" value="${f.ent_tirilla_vacio}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. CARGUE <input type="text" name="ent_tiq_cargue" value="${f.ent_tiq_cargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. DESCARGUE <input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-             </div>
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:20px; margin-bottom:30px; border-bottom:1px solid #334155; padding-bottom:20px;">
+            <h4 style="grid-column:span 4; color:#3b82f6; margin:0;">1. VALORES Y ANTICIPOS</h4>
+            <div><label style="${lS}">V. Flete Pagar</label><input type="number" step="0.01" name="v_flete" value="${f.v_flete}" style="${iS}"></div>
+            <div><label style="${lS}">V. Facturar</label><input type="number" step="0.01" name="v_facturar" value="${f.v_facturar}" style="${iS}"></div>
+            <div><label style="${lS}">Estado Pago</label><input type="text" name="est_pago" value="${f.est_pago}" style="${iS}"></div>
+            <div><label style="${lS}">Tipo Anticipo</label><input type="text" name="tipo_anticipo" value="${f.tipo_anticipo||''}" style="${iS}"></div>
+            <div><label style="${lS}">Valor Anticipo</label><input type="number" step="0.01" name="valor_anticipo" value="${f.valor_anticipo}" style="${iS}"></div>
+            <div><label style="${lS}">Sobre Anticipo</label><input type="number" step="0.01" name="sobre_anticipo" value="${f.sobre_anticipo}" style="${iS}"></div>
+            <div><label style="${lS}">Estado Ant.</label><input type="text" name="estado_ant" value="${f.estado_ant||''}" style="${iS}"></div>
+            <div><label style="${lS}">Fecha Pago Ant.</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="${iS}"></div>
           </div>
 
-          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
-          <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div style="background:rgba(15,23,42,0.4); padding:20px; border-radius:10px; border:1px solid #334155; margin-bottom:30px;">
+            <h4 style="color:#10b981; margin:0 0 20px 0;">2. CONTROL DE DOCUMENTOS (SI / NO)</h4>
+            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:15px;">
+              <div><label style="${lS}">Manifiesto</label><input type="text" name="ent_manifiesto" value="${f.ent_manifiesto}" style="${iS}"></div>
+              <div><label style="${lS}">Remesa</label><input type="text" name="ent_remesa" value="${f.ent_remesa}" style="${iS}"></div>
+              <div><label style="${lS}">Hoja Tiempos</label><input type="text" name="ent_hoja_tiempos" value="${f.ent_hoja_tiempos}" style="${iS}"></div>
+              <div><label style="${lS}">Docs Cliente</label><input type="text" name="ent_docs_cliente" value="${f.ent_docs_cliente}" style="${iS}"></div>
+              <div><label style="${lS}">Facturas</label><input type="text" name="ent_facturas" value="${f.ent_facturas}" style="${iS}"></div>
+              <div><label style="${lS}">Tirilla Vacío</label><input type="text" name="ent_tirilla_vacio" value="${f.ent_tirilla_vacio}" style="${iS}"></div>
+              <div><label style="${lS}">Tiq. Cargue</label><input type="text" name="ent_tiq_cargue" value="${f.ent_tiq_cargue}" style="${iS}"></div>
+              <div><label style="${lS}">Tiq. Descargue</label><input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="${iS}"></div>
+              <div><label style="${lS}">¿Novedades?</label><input type="text" name="presenta_novedades" value="${f.presenta_novedades}" style="${iS}"></div>
+              <div><label style="${lS}">Tipo Cumplido</label><input type="text" name="tipo_cumplido" value="${f.tipo_cumplido||''}" style="${iS}"></div>
+            </div>
+          </div>
 
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS CONTABLES</button>
+          <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:20px; margin-bottom:30px;">
+            <h4 style="grid-column:span 4; color:#3b82f6; margin:0;">3. LIQUIDACIÓN Y CIERRE</h4>
+            <div><label style="${lS}">Obs. Novedad</label><textarea name="obs_novedad" style="${iS} height:80px;">${f.obs_novedad||''}</textarea></div>
+            <div>
+              <label style="${lS}">Valor Descuento</label><input type="number" step="0.01" name="valor_descuento" value="${f.valor_descuento}" style="${iS} border-color:#ef4444;">
+              <label style="${lS}">Retefuente</label><input type="number" step="0.01" name="retefuente" value="${f.retefuente}" style="${iS}">
+            </div>
+            <div>
+              <label style="${lS}">Fecha Cumplido</label><input type="date" name="fecha_cump_docs" value="${f.fecha_cump_docs||''}" style="${iS}">
+              <label style="${lS}">ReteIca</label><input type="number" step="0.01" name="reteica" value="${f.reteica}" style="${iS}">
+            </div>
+            <div>
+              <label style="${lS}">Legalización</label><input type="date" name="fecha_legalizacion" value="${f.fecha_legalizacion||''}" style="${iS}">
+              <label style="${lS}">SALDO FINAL</label><input type="number" step="0.01" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="${iS} border-color:#10b981; color:#10b981; font-weight:bold;">
+            </div>
+          </div>
+
+          <button type="submit" style="width:100%; padding:20px; background:#3b82f6; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; font-size:18px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.3);">GUARDAR LIQUIDACIÓN COMPLETA</button>
         </form>
-        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
+        <p style="text-align:center; margin-top:20px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Cancelar y volver al listado</a></p>
       </div>
     </body>`);
 });
 
+// --- RUTA DE GUARDADO ---
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
-  res.redirect('/');
+  try {
+    const d = req.body;
+    // Limpieza de emojis y normalización antes de guardar
+    Object.keys(d).forEach(k => { if(typeof d[k] === 'string') d[k] = d[k].replace(/[✅❌]/g, '').toUpperCase().trim(); });
+    await Finanza.update(d, { where: { cargaId: req.params.id } });
+    res.redirect('/');
+  } catch (err) { res.status(500).send(err.message); }
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
+db.sync({ alter: true }).then(() => app.listen(PORT));
