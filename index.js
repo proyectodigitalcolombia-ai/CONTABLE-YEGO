@@ -31,9 +31,10 @@ app.get('/', async (req, res) => {
       const estado = f ? f.est_pago : "PENDIENTE";
       if(estado === 'PENDIENTE') totalPendiente += fleteNum;
 
+      // EL ORDEN DE ESTOS <td> DEBE COINCIDIR EXACTAMENTE CON EL <thead>
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 10px; white-space: nowrap;">
-          <td style="padding: 4px; color: #94a3b8;">${idReal}</td>
+          <td style="padding: 4px;">${c.id}</td>
           <td style="padding: 4px;"><b>${c.placa || ''}</b></td>
           <td style="padding: 4px;">${c.comercial || ''}</td>
           <td style="padding: 4px;">${c.peso || ''}</td>
@@ -71,12 +72,13 @@ app.get('/', async (req, res) => {
           <td style="padding: 4px;">${c.h_t || ''}</td>
           <td style="padding: 4px;">${c.desp || ''}</td>
           <td style="padding: 4px;">${c.f_fin || ''}</td>
-          <td style="padding: 4px; color: #fbbf24; font-weight: bold;">${c.est_real || ''}</td>
+          <td style="padding: 4px; color: #fbbf24;">${c.est_real || ''}</td>
+          
           <td style="padding: 4px; color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.1); border-left: 2px solid #3b82f6;">$${fleteNum.toLocaleString('es-CO')}</td>
           <td style="padding: 4px; background: rgba(16, 185, 129, 0.1);">
             <span style="background: ${estado === 'PAGADO' ? '#065f46' : '#7f1d1d'}; padding: 2px 4px; border-radius: 3px; font-size: 9px;">${estado}</span>
           </td>
-          <td style="padding: 4px; border-left: 1px solid #334155;">
+          <td style="padding: 4px;">
             <a href="/editar/${idReal}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
@@ -91,9 +93,9 @@ app.get('/', async (req, res) => {
 
         <input type="text" id="buscador" placeholder="🔍 Filtrar placa..." style="width:100%; padding:6px; margin-bottom:10px; border-radius:4px; border:1px solid #334155; background:#1e293b; color:white; font-size: 12px;">
 
-        <div style="overflow-x: auto; border-radius: 4px; border: 1px solid #334155;">
+        <div style="overflow-x: auto; border: 1px solid #334155;">
           <table style="width:100%; border-collapse:collapse; background:#1e293b;">
-            <thead style="background:#1e40af; font-size: 9px; text-transform: uppercase;">
+            <thead style="background:#1e40af; font-size: 9px; text-transform: uppercase; white-space: nowrap;">
               <tr>
                 <th style="padding:8px; text-align:left;">ID</th>
                 <th style="text-align:left;">PLACA</th>
@@ -101,12 +103,12 @@ app.get('/', async (req, res) => {
                 <th style="text-align:left;">PESO</th>
                 <th style="text-align:left;">OFICINA</th>
                 <th style="text-align:left;">MUC</th>
-                <th style="text-align:left;">EMP GEN</th>
+                <th style="text-align:left;">EMP_GEN</th>
                 <th style="text-align:left;">PTO</th>
                 <th style="text-align:left;">REFLEJA</th>
-                <th style="text-align:left;">F DOC</th>
-                <th style="text-align:left;">H DOC</th>
-                <th style="text-align:left;">DO BL</th>
+                <th style="text-align:left;">F_DOC</th>
+                <th style="text-align:left;">H_DOC</th>
+                <th style="text-align:left;">DO_BL</th>
                 <th style="text-align:left;">CLI</th>
                 <th style="text-align:left;">SUBC</th>
                 <th style="text-align:left;">MOD</th>
@@ -118,25 +120,25 @@ app.get('/', async (req, res) => {
                 <th style="text-align:left;">VENCE</th>
                 <th style="text-align:left;">ORIG</th>
                 <th style="text-align:left;">DEST</th>
-                <th style="text-align:left;">T V</th>
+                <th style="text-align:left;">T_V</th>
                 <th style="text-align:left;">PED</th>
-                <th style="text-align:left;">F C</th>
-                <th style="text-align:left;">H C</th>
-                <th style="text-align:left;">F D</th>
-                <th style="text-align:left;">H D</th>
-                <th style="text-align:left;">F P</th>
-                <th style="text-align:left;">F F</th>
-                <th style="text-align:left;">OBS E</th>
-                <th style="text-align:left;">F ACT</th>
+                <th style="text-align:left;">F_C</th>
+                <th style="text-align:left;">H_C</th>
+                <th style="text-align:left;">F_D</th>
+                <th style="text-align:left;">H_D</th>
+                <th style="text-align:left;">F_P</th>
+                <th style="text-align:left;">F_F</th>
+                <th style="text-align:left;">OBS_E</th>
+                <th style="text-align:left;">F_ACT</th>
                 <th style="text-align:left;">OBS</th>
                 <th style="text-align:left;">COND</th>
-                <th style="text-align:left;">H T</th>
+                <th style="text-align:left;">H_T</th>
                 <th style="text-align:left;">DESP</th>
-                <th style="text-align:left;">F FIN</th>
-                <th style="text-align:left;">EST REAL</th>
+                <th style="text-align:left;">F_FIN</th>
+                <th style="text-align:left;">EST_REAL</th>
                 <th style="text-align:left; background: #064e3b; color: #fff;">VALOR FLETE</th>
                 <th style="text-align:left; background: #064e3b; color: #fff;">ESTADO PAGO</th>
-                <th style="text-align:left;">GESTIÓN</th>
+                <th style="text-align:left;">ACCIÓN</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -183,4 +185,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 COMPLETO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 ORDEN EXACTO')));
