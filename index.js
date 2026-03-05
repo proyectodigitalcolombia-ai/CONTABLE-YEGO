@@ -84,7 +84,6 @@ app.get('/', async (req, res) => {
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
-// RUTA EDITAR: Vital para guardar datos reales
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -92,6 +91,7 @@ app.get('/editar/:id', async (req, res) => {
       <form action="/guardar/${req.params.id}" method="POST" style="background:#1e293b; padding:30px; border-radius:15px; max-width:400px; margin:auto; border:1px solid #3b82f6;">
         <h2 style="text-align:center; color:#3b82f6;">Carga #${req.params.id}</h2>
         Flete a Pagar: <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155;"><br>
+        Flete a Facturar: <input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155;"><br>
         Saldo a Pagar: <input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:#10b981; border:1px solid #10b981;"><br><br>
         <button type="submit" style="width:100%; padding:15px; background:#3b82f6; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">GUARDAR Y VOLVER</button>
       </form>
@@ -99,8 +99,15 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.upsert({ cargaId: req.params.id, ...req.body });
-  res.redirect('/');
+  try {
+    await Finanza.upsert({
+      cargaId: req.params.id,
+      v_flete: req.body.v_flete || 0,
+      v_facturar: req.body.v_facturar || 0,
+      saldo_a_pagar: req.body.saldo_a_pagar || 0
+    });
+    res.redirect('/');
+  } catch (err) { res.status(500).send("Error al guardar: " + err.message); }
 });
 
 const PORT = process.env.PORT || 3000;
