@@ -84,7 +84,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
-          <td style="${tdStyle}">
+         <td style="${tdStyle}">
   <select 
     onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
     style="${selStyle}">
