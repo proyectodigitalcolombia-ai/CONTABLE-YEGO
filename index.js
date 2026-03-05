@@ -140,8 +140,20 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${renderSelectEntrega('ent_tirilla_vacio', f.ent_tirilla_vacio)}</td>
           <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_cargue', f.ent_tiq_cargue)}</td>
           <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_descargue', f.ent_tiq_descargue)}</td>
-          <td style="${tdStyle}">${statusCheck(f.presenta_novedades || 'NO')}</td>
-          <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
+          <td style="${tdStyle}">
+            <select onchange="gestionarNovedad(${c.id}, this.value)" style="${selStyle}">
+              <option value="NO" ${f.presenta_novedades === 'NO' ? 'selected' : ''}>NO</option>
+              <option value="SI" ${f.presenta_novedades === 'SI' ? 'selected' : ''}>SI</option>
+            </select>
+          </td>
+          <td id="td-obs-${c.id}" style="${tdStyle}">
+            <div id="obs-${c.id}" 
+                 contenteditable="${f.presenta_novedades === 'SI'}" 
+                 onblur="actualizarEntrega(${c.id}, 'obs_novedad', this.innerText)"
+                 style="min-width: 100px; padding: 2px; border: ${f.presenta_novedades === 'SI' ? '1px solid #3b82f6' : 'none'}; border-radius: 4px;">
+              ${f.presenta_novedades === 'SI' ? (f.obs_novedad || '') : '---'}
+            </div>
+          </td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
           <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
@@ -200,6 +212,22 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
+          async function gestionarNovedad(cargaId, valor) {
+            const divObs = document.getElementById("obs-" + cargaId);
+            if(valor === "SI") {
+              divObs.contentEditable = "true";
+              divObs.innerText = "";
+              divObs.style.border = "1px solid #3b82f6";
+              divObs.focus();
+            } else {
+              divObs.contentEditable = "false";
+              divObs.innerText = "---";
+              divObs.style.border = "none";
+              await actualizarEntrega(cargaId, 'obs_novedad', '');
+            }
+            await actualizarEntrega(cargaId, 'presenta_novedades', valor);
+          }
+
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
               await fetch('/actualizar-entrega', {
