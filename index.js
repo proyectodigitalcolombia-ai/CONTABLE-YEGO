@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO ORIGINAL - SIN ALTERACIONES
+// MODELO ORIGINAL - SIN CAMBIOS EN LA BASE
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -53,9 +53,16 @@ const statusCheck = (val) => {
 
 app.get('/', async (req, res) => {
   try {
-    // UNIÓN DE TABLAS MEDIANTE SQL PARA PASAR LA INFO CORRECTAMENTE
+    // CONSULTA REFORZADA: Renombramos los campos explícitamente para evitar conflictos
     const sql = `
-      SELECT c.*, f.*, c.id AS main_id 
+      SELECT 
+        c.id as cid, c.f_doc, c.oficina, c.orig, c.dest, c.cli, c.cont, c.ped, c.placa, c.muc, c.f_act, c.est_real,
+        f.v_flete, f.v_facturar, f.est_pago, f.tipo_anticipo, f.valor_anticipo, f.sobre_anticipo, 
+        f.estado_ant, f.fecha_pago_ant, f.tipo_cumplido, f.fecha_cump_virtual, f.ent_manifiesto, 
+        f.ent_remesa, f.ent_hoja_tiempos, f.ent_docs_cliente, f.ent_facturas, f.ent_tirilla_vacio, 
+        f.ent_tiq_cargue, f.ent_tiq_descargue, f.presenta_novedades, f.obs_novedad, f.valor_descuento, 
+        f.fecha_cump_docs, f.fecha_legalizacion, f.retefuente, f.reteica, f.saldo_a_pagar, 
+        f.estado_final, f.dias_sin_pagar, f.dias_sin_cumplir
       FROM "Cargas" c
       LEFT JOIN "Yego_Finanzas" f ON c.id = f."cargaId"
       WHERE c.placa IS NOT NULL AND c.placa != '' 
@@ -65,14 +72,18 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      const fletePagar = Number(c.v_flete || 0);
+      // Forzamos la conversión a número para evitar el $0 por error de texto
+      const fletePagar = parseFloat(c.v_flete) || 0;
+      const fleteFacturar = parseFloat(c.v_facturar) || 0;
+      const saldoFinal = parseFloat(c.saldo_a_pagar) || 0;
+      
       if((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
+          <td style="${tdStyle} color: #94a3b8;">#${c.cid}</td>
           <td style="${tdStyle}">${c.f_doc || '---'}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
@@ -83,37 +94,37 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
           <td style="${tdStyle}">${c.muc || '---'}</td>
           <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${Number(c.v_facturar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">${c.tipo_anticipo || '---'}</td>
-          <td style="${tdStyle}">$${Number(c.valor_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(c.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${(parseFloat(c.valor_anticipo)||0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${(parseFloat(c.sobre_anticipo)||0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.estado_ant || '---'}</td>
           <td style="${tdStyle}">${c.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${c.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${c.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_manifiesto || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_remesa || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_hoja_tiempos || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_docs_cliente || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_facturas || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tirilla_vacio || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tiq_cargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(c.presenta_novedades || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_manifiesto)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_remesa)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_hoja_tiempos)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_docs_cliente)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_facturas)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tirilla_vacio)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tiq_cargue)}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue)}</td>
+          <td style="${tdStyle}">${statusCheck(c.presenta_novedades)}</td>
           <td style="${tdStyle}">${c.obs_novedad || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">$${Number(c.valor_descuento || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #ef4444;">$${(parseFloat(c.valor_descuento)||0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.fecha_cump_docs || '---'}</td>
           <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
-          <td style="${tdStyle}">$${Number(c.retefuente || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(c.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(c.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${(parseFloat(c.retefuente)||0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${(parseFloat(c.reteica)||0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${saldoFinal.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${c.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${c.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.main_id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <a href="/editar/${c.cid}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
@@ -199,10 +210,10 @@ app.get('/editar/:id', async (req, res) => {
              </div>
           </div>
 
-          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
+          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
+          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
           <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
 
