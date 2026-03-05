@@ -19,7 +19,7 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' AND placa != '---' ORDER BY id DESC LIMIT 100`;
+    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 100`;
     const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
@@ -31,13 +31,13 @@ app.get('/', async (req, res) => {
       const estado = f ? f.est_pago : "PENDIENTE";
       if(estado === 'PENDIENTE') totalPendiente += fleteNum;
 
-      // EL ORDEN DE ESTOS <td> DEBE COINCIDIR EXACTAMENTE CON EL <thead>
+      // MAPEO CELDA POR CELDA SEGÚN LA ESTRUCTURA V20
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 10px; white-space: nowrap;">
-          <td style="padding: 4px;">${c.id}</td>
-          <td style="padding: 4px;"><b>${c.placa || ''}</b></td>
+          <td style="padding: 4px; color: #94a3b8;">${c.id}</td>
           <td style="padding: 4px;">${c.comercial || ''}</td>
           <td style="padding: 4px;">${c.peso || ''}</td>
+          <td style="padding: 4px; background: rgba(59, 130, 246, 0.1);"><b>${c.placa || ''}</b></td>
           <td style="padding: 4px;">${c.oficina || ''}</td>
           <td style="padding: 4px;">${c.muc || ''}</td>
           <td style="padding: 4px;">${c.emp_gen || ''}</td>
@@ -87,20 +87,20 @@ app.get('/', async (req, res) => {
     res.send(`
       <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:10px; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background: #1e293b; padding: 8px; border-radius: 6px; border-bottom: 2px solid #3b82f6;">
-          <h3 style="margin:0; font-size: 14px; color: #3b82f6;">🚛 YEGO LOGÍSTICA V20 INTEGRADA</h3>
+          <h3 style="margin:0; font-size: 14px; color: #3b82f6;">🚛 YEGO LOGÍSTICA V20 (ORDEN CORREGIDO)</h3>
           <b style="color:#ef4444; font-size: 14px;">POR PAGAR: $ ${totalPendiente.toLocaleString('es-CO')}</b>
         </div>
 
-        <input type="text" id="buscador" placeholder="🔍 Filtrar placa..." style="width:100%; padding:6px; margin-bottom:10px; border-radius:4px; border:1px solid #334155; background:#1e293b; color:white; font-size: 12px;">
+        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:6px; margin-bottom:10px; border-radius:4px; border:1px solid #334155; background:#1e293b; color:white; font-size: 12px;">
 
         <div style="overflow-x: auto; border: 1px solid #334155;">
           <table style="width:100%; border-collapse:collapse; background:#1e293b;">
             <thead style="background:#1e40af; font-size: 9px; text-transform: uppercase; white-space: nowrap;">
               <tr>
                 <th style="padding:8px; text-align:left;">ID</th>
-                <th style="text-align:left;">PLACA</th>
                 <th style="text-align:left;">COMERCIAL</th>
                 <th style="text-align:left;">PESO</th>
+                <th style="text-align:left; background: #1d4ed8;">PLACA</th>
                 <th style="text-align:left;">OFICINA</th>
                 <th style="text-align:left;">MUC</th>
                 <th style="text-align:left;">EMP_GEN</th>
@@ -136,15 +136,14 @@ app.get('/', async (req, res) => {
                 <th style="text-align:left;">DESP</th>
                 <th style="text-align:left;">F_FIN</th>
                 <th style="text-align:left;">EST_REAL</th>
-                <th style="text-align:left; background: #064e3b; color: #fff;">VALOR FLETE</th>
-                <th style="text-align:left; background: #064e3b; color: #fff;">ESTADO PAGO</th>
-                <th style="text-align:left;">ACCIÓN</th>
+                <th style="text-align:left; background: #064e3b;">VALOR FLETE</th>
+                <th style="text-align:left; background: #064e3b;">ESTADO PAGO</th>
+                <th style="text-align:left;">ACCION</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
-
         <script>
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
@@ -157,7 +156,7 @@ app.get('/', async (req, res) => {
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
-// Rutas de edición se mantienen igual...
+// Rutas /editar y /guardar se mantienen igual que antes
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -185,4 +184,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 ORDEN EXACTO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 CORREGIDO')));
