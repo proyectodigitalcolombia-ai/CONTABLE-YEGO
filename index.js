@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO RESTAURADO PARA COINCIDIR CON LA BASE ACTUAL
+// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -43,8 +43,9 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
-}, { tableName: 'Yego_Finanzas', timestamps: false }); // Desactivamos timestamps para no tocar la tabla
+}, { tableName: 'Yego_Finanzas' });
 
+// Función auxiliar para el cambio de estado visual (Chulo/X)
 const statusCheck = (val) => {
   if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
   if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
@@ -215,5 +216,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-// IMPORTANTE: Cambiamos a { alter: false } para que NO intente modificar tu base de datos
-db.sync({ alter: false }).then(() => app.listen(PORT, () => console.log('🚀 YEGO CONTABLE ONLINE')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
