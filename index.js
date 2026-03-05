@@ -96,7 +96,7 @@ app.get('/', async (req, res) => {
               <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
             </select>
           </td>
-          <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td id="valor-ant-${c.id}" style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">
             <select 
@@ -178,38 +178,39 @@ app.get('/', async (req, res) => {
         
         <script>
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-            let porcentaje = 0;
-            if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-            else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
-            else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+    // 1. Calcular el porcentaje basado en el texto del <option>
+    let porcentaje = 0;
+    if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
+    else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
+    else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
 
-            const valorCalculado = Math.round(flete * porcentaje);
+    const valorCalculado = Math.round(flete * porcentaje);
+    
+    try {
+        // 2. Enviar al servidor para que se guarde en la DB
+        const response = await fetch('/actualizar-anticipo-directo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                cargaId, 
+                tipo_anticipo: valorSeleccionado, 
+                valor_anticipo: valorCalculado 
+            })
+        });
 
-            try {
-              const response = await fetch('/actualizar-anticipo-directo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  cargaId, 
-                  tipo_anticipo: valorSeleccionado,
-                  valor_anticipo: valorCalculado 
-                })
-              });
-
-              if (response.ok) {
-                location.reload();
-              }
-            } catch (error) {
-              alert("Error al actualizar el cálculo");
+        // 3. Si el servidor respondió OK, actualizar la celda de la tabla inmediatamente
+        if (response.ok) {
+            const celdaValor = document.getElementById("valor-ant-" + cargaId);
+            if (celdaValor) {
+                celdaValor.innerText = "$" + valorCalculado.toLocaleString('es-CO');
+                // Opcional: un pequeño destello verde para indicar éxito
+                celdaValor.style.color = "#10b981"; 
             }
-          }
-
-          document.getElementById('buscador').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.fila-carga').forEach(fila => {
-              fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
-            });
-          });
+        }
+    } catch (error) { 
+        console.error("Error al actualizar anticipo:", error); 
+    }
+}
 
           async function actualizarEstadoFinanciero(id, nuevoEstado) {
             let fechaActualizada = null;
