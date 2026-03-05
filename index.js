@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
+// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN (SIN CAMBIOS)
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -45,12 +45,12 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
-// Función visual para la tabla (Solo visualización)
-const statusCheck = (val) => {
-  const v = (val || 'NO').toUpperCase();
-  if (v === 'SI') return '<b style="color: #10b981;">✅ SI</b>';
-  if (v === 'NO') return '<b style="color: #ef4444;">❌ NO</b>';
-  return v;
+// FUNCIÓN AUXILIAR PARA EL CHULO/X VISUAL (SOLO PARA LA TABLA)
+const fCheck = (v) => {
+  const val = (v || 'NO').toUpperCase();
+  if (val === 'SI') return '<b style="color:#10b981;">✅ SI</b>';
+  if (val === 'NO') return '<span style="color:#ef4444;">❌ NO</span>';
+  return val;
 };
 
 app.get('/', async (req, res) => {
@@ -91,15 +91,15 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_remesa)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_facturas)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue)}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue)}</td>
-          <td style="${tdStyle}">${statusCheck(f.presenta_novedades)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_manifiesto)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_remesa)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_hoja_tiempos)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_docs_cliente)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_facturas)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_tirilla_vacio)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_tiq_cargue)}</td>
+          <td style="${tdStyle}">${fCheck(f.ent_tiq_descargue)}</td>
+          <td style="${tdStyle}">${fCheck(f.presenta_novedades)}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
@@ -212,14 +212,9 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  // Aseguramos que guarde en MAYÚSCULAS para que la visualización funcione siempre
-  const data = { ...req.body };
-  Object.keys(data).forEach(key => {
-    if (typeof data[key] === 'string') data[key] = data[key].toUpperCase();
-  });
-  await Finanza.update(data, { where: { cargaId: req.params.id } });
+  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
   res.redirect('/');
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID ACTUALIZABLE')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
