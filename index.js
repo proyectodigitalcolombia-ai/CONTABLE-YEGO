@@ -60,7 +60,9 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = cargas.map(c => {
-      const f = finanzas.find(fin => fin.cargaId === c.id) || {};
+      // ASEGURAMOS QUE LA COMPARACIÓN SEA POR NÚMERO PARA EVITAR FALLOS DE "123" vs 123
+      const f = finanzas.find(fin => Number(fin.cargaId) === Number(c.id)) || {};
+      
       const fletePagar = Number(f.v_flete || 0);
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
@@ -211,6 +213,7 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
+  // Aseguramos que guarde usando cargaId
   await Finanza.update(req.body, { where: { cargaId: req.params.id } });
   res.redirect('/');
 });
