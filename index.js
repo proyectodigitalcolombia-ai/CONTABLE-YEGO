@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN (MANTENIDO ORIGINAL)
+// MODELO ORIGINAL - SIN ALTERACIONES
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -43,9 +43,8 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
-}, { tableName: 'Yego_Finanzas' });
+}, { tableName: 'Yego_Finanzas', timestamps: false });
 
-// Función auxiliar para el cambio de estado visual (Chulo/X)
 const statusCheck = (val) => {
   if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
   if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
@@ -54,24 +53,26 @@ const statusCheck = (val) => {
 
 app.get('/', async (req, res) => {
   try {
-    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
-    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
-    const finanzas = await Finanza.findAll();
+    // UNIÓN DE TABLAS MEDIANTE SQL PARA PASAR LA INFO CORRECTAMENTE
+    const sql = `
+      SELECT c.*, f.*, c.id AS main_id 
+      FROM "Cargas" c
+      LEFT JOIN "Yego_Finanzas" f ON c.id = f."cargaId"
+      WHERE c.placa IS NOT NULL AND c.placa != '' 
+      ORDER BY c.id DESC LIMIT 150`;
+    
+    const datos = await db.query(sql, { type: QueryTypes.SELECT });
 
     let totalPendiente = 0;
-    let filas = cargas.map(c => {
-      // AJUSTE CLAVE: Aseguramos la comparación de IDs para que la info de Finanza se pase a la fila de Carga
-      const f = finanzas.find(fin => Number(fin.cargaId) === Number(c.id)) || {};
-      
-      const fletePagar = Number(f.v_flete || 0);
-      const estadoContable = f.est_pago || "PENDIENTE";
-      if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
+    let filas = datos.map(c => {
+      const fletePagar = Number(c.v_flete || 0);
+      if((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.id}</td>
+          <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
           <td style="${tdStyle}">${c.f_doc || '---'}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
@@ -82,37 +83,37 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
           <td style="${tdStyle}">${c.muc || '---'}</td>
           <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${Number(f.v_facturar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #3b82f6;">$${Number(c.v_facturar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
-          <td style="${tdStyle}">${f.tipo_anticipo || '---'}</td>
-          <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_ant || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
-          <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_facturas || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.presenta_novedades || 'NO')}</td>
-          <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
-          <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_final || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
-          <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
+          <td style="${tdStyle}">${c.tipo_anticipo || '---'}</td>
+          <td style="${tdStyle}">$${Number(c.valor_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${Number(c.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${c.estado_ant || '---'}</td>
+          <td style="${tdStyle}">${c.fecha_pago_ant || '---'}</td>
+          <td style="${tdStyle}">${c.tipo_cumplido || '---'}</td>
+          <td style="${tdStyle}">${c.fecha_cump_virtual || '---'}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_manifiesto || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_remesa || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_hoja_tiempos || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_docs_cliente || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_facturas || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tirilla_vacio || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tiq_cargue || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(c.presenta_novedades || 'NO')}</td>
+          <td style="${tdStyle}">${c.obs_novedad || '---'}</td>
+          <td style="${tdStyle} color: #ef4444;">$${Number(c.valor_descuento || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${c.fecha_cump_docs || '---'}</td>
+          <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
+          <td style="${tdStyle}">$${Number(c.retefuente || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${Number(c.reteica || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(c.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${c.estado_final || '---'}</td>
+          <td style="${tdStyle} color: #ef4444;">${c.dias_sin_pagar || 0}</td>
+          <td style="${tdStyle} color: #3b82f6;">${c.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <a href="/editar/${c.main_id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
@@ -218,4 +219,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID ACTUALIZADO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL OPERACIONAL')));
