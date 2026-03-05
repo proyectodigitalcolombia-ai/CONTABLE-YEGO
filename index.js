@@ -134,8 +134,8 @@ app.get('/', async (req, res) => {
                 <th style="${thStyle}">ID</th><th style="${thStyle}">FECHA REGISTRO</th><th style="${thStyle}">OFICINA</th>
                 <th style="${thStyle}">ORIGEN</th><th style="${thStyle}">DESTINO</th><th style="${thStyle}">CLIENTE</th>
                 <th style="${thStyle}">CONTENEDOR</th><th style="${thStyle}">PEDIDO</th><th style="${thStyle}">PLACA</th>
-                <th style="${thStyle}">MUC</th><th style="${thStyle}">VALOR FLETE A PAGAR</th>
-                <th style="${thStyle}">VALOR FLETE A FACTURAR</th><th style="${thStyle}">FECHA ACTUALIZACIÓN</th>
+                <th style="${thStyle}">MUC</th><th style="${thStyle}">FLETE A PAGAR</th>
+                <th style="${thStyle}">FLETE A FACTURAR</th><th style="${thStyle}">FECHA ACTUALIZACIÓN</th>
                 <th style="${thStyle}">ESTADO FINAL LOGIS</th>
                 <th style="${thStyle}">TIPO DE ANTICIPO</th><th style="${thStyle}">VALOR ANTICIPO</th>
                 <th style="${thStyle}">SOBRE ANTICIPO</th><th style="${thStyle}">ESTADO</th>
