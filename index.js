@@ -19,17 +19,7 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    // AMPLIAMOS EL FILTRO: 
-    // Ahora busca cualquier registro que tenga placa (no nula y no vacía)
-    // Eliminamos la obligatoriedad del 'OK' para ver si esas 2 placas aparecen
-    const sql = `
-      SELECT * FROM "Cargas" 
-      WHERE placa IS NOT NULL 
-      AND placa != '' 
-      AND placa != '---'
-      ORDER BY id DESC 
-      LIMIT 200`;
-
+    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' AND placa != '---' ORDER BY id DESC LIMIT 150`;
     const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
@@ -39,56 +29,65 @@ app.get('/', async (req, res) => {
       const f = finanzas.find(fin => fin.cargaId === idReal);
       const fleteNum = f ? Number(f.v_flete) : 0;
       const estado = f ? f.est_pago : "PENDIENTE";
-      
       if(estado === 'PENDIENTE') totalPendiente += fleteNum;
 
       return `
-        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 12px;">
-          <td style="padding: 5px 8px; color: #94a3b8;">#${idReal}</td>
-          <td style="padding: 5px 8px;"><b>${c.placa}</b></td>
-          <td style="padding: 5px 8px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.cli || '---'}</td>
-          <td style="padding: 5px 8px;">${c.f_d || '---'}</td>
-          <td style="padding: 5px 8px; color: #10b981; font-weight: bold;">$${fleteNum.toLocaleString('es-CO')}</td>
-          <td style="padding: 5px 8px;">
-            <span style="background: ${estado === 'PAGADO' ? '#065f46' : '#7f1d1d'}; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${estado}</span>
+        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px; white-space: nowrap;">
+          <td style="padding: 4px; color: #94a3b8;">#${idReal}</td>
+          <td style="padding: 4px;"><b>${c.placa}</b></td>
+          <td style="padding: 4px;">${c.f_d || '---'}</td>
+          <td style="padding: 4px; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${c.cli || '---'}</td>
+          <td style="padding: 4px;">${c.orig || '---'}</td>
+          <td style="padding: 4px;">${c.dest || '---'}</td>
+          <td style="padding: 4px;">${c.cont || '---'}</td>
+          <td style="padding: 4px;">${c.prod || '---'}</td>
+          <td style="padding: 4px;">${c.peso || '0'}</td>
+          <td style="padding: 4px;">${c.desp || '---'}</td>
+          <td style="padding: 4px; color: #fbbf24;">${c.est_real || '---'}</td>
+          <td style="padding: 4px; color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.1);">$${fleteNum.toLocaleString('es-CO')}</td>
+          <td style="padding: 4px;">
+            <span style="background: ${estado === 'PAGADO' ? '#065f46' : '#7f1d1d'}; padding: 2px 4px; border-radius: 3px; font-size: 9px; font-weight: bold;">${estado}</span>
           </td>
-          <td style="padding: 5px 8px; font-size: 11px; color: #94a3b8;">${c.est_real || '---'}</td>
-          <td style="padding: 5px 8px;">
-            <a href="/editar/${idReal}" style="color: #3b82f6; text-decoration: none; font-weight: bold; font-size: 11px;">[LIQUIDAR]</a>
+          <td style="padding: 4px;">
+            <a href="/editar/${idReal}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
 
     res.send(`
-      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', Tahoma, sans-serif; padding:15px; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 10px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-          <div>
-            <h3 style="color:#3b82f6; margin:0; font-size: 16px;">🚛 YEGO CONTABLE V20</h3>
-            <small style="color: #94a3b8;">Mostrando todos los servicios con placa asignada</small>
-          </div>
+      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:10px; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background: #1e293b; padding: 8px; border-radius: 6px; border-bottom: 2px solid #3b82f6;">
+          <h3 style="margin:0; font-size: 14px; color: #3b82f6;">🚛 YEGO LOGÍSTICA V20 + CONTABILIDAD</h3>
           <div style="text-align: right;">
-            <small style="color:#94a3b8; font-size: 10px;">PENDIENTE POR COBRO:</small><br>
-            <b style="color:#ef4444; font-size: 18px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
+            <b style="color:#ef4444; font-size: 14px;">PENDIENTE: $ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
 
-        <input type="text" id="buscador" placeholder="🔍 Buscar placa..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:5px; border:1px solid #334155; background:#1e293b; color:white; font-size: 13px;">
+        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:6px; margin-bottom:10px; border-radius:4px; border:1px solid #334155; background:#1e293b; color:white; font-size: 12px;">
 
-        <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:5px; overflow:hidden;">
-          <thead style="background:#1e40af; font-size: 12px;">
-            <tr>
-              <th style="padding:10px 8px; text-align:left;">ID</th>
-              <th style="text-align:left;">PLACA</th>
-              <th style="text-align:left;">CLIENTE</th>
-              <th style="text-align:left;">DESPACHO</th>
-              <th style="text-align:left;">FLETE</th>
-              <th style="text-align:left;">ESTADO</th>
-              <th style="text-align:left;">EST. REAL</th>
-              <th style="text-align:left;">ACCIÓN</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-cargas">${filas}</tbody>
-        </table>
+        <div style="overflow-x: auto;">
+          <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:4px;">
+            <thead style="background:#1e40af; font-size: 10px; text-transform: uppercase;">
+              <tr>
+                <th style="padding:8px; text-align:left;">ID</th>
+                <th style="text-align:left;">PLACA</th>
+                <th style="text-align:left;">FECHA</th>
+                <th style="text-align:left;">CLIENTE</th>
+                <th style="text-align:left;">ORIGEN</th>
+                <th style="text-align:left;">DESTINO</th>
+                <th style="text-align:left;">CONTENEDOR</th>
+                <th style="text-align:left;">PRODUCTO</th>
+                <th style="text-align:left;">PESO</th>
+                <th style="text-align:left;">DESPACHADOR</th>
+                <th style="text-align:left;">EST. LOGISTICO</th>
+                <th style="text-align:left; background: #064e3b;">V. FLETE</th>
+                <th style="text-align:left; background: #064e3b;">ESTADO PAGO</th>
+                <th style="text-align:left;">ACCIÓN</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-cargas">${filas}</tbody>
+          </table>
+        </div>
 
         <script>
           document.getElementById('buscador').addEventListener('input', (e) => {
@@ -99,16 +98,15 @@ app.get('/', async (req, res) => {
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error en consulta: " + err.message); }
+  } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
-// Rutas de edición (se mantienen igual)
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
-    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:30px;">
+    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:20px;">
       <div style="max-width:300px; margin:auto; background:#1e293b; padding:20px; border-radius:10px; border:1px solid #3b82f6;">
-        <h4 style="margin-top:0;">Liquidación #${req.params.id}</h4>
+        <h4 style="margin-top:0;">Liquidar #${req.params.id}</h4>
         <form action="/guardar/${req.params.id}" method="POST">
           <label style="font-size: 12px;">VALOR FLETE:</label>
           <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; margin:8px 0; background:#0f172a; color:#10b981; border:1px solid #334155; border-radius:4px; font-weight:bold;">
@@ -130,4 +128,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 Filtro amplio activado')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 COMPLETO')));
