@@ -70,16 +70,18 @@ app.post('/api/update-cell', async (req, res) => {
 // --- VISTA PRINCIPAL GRID ---
 app.get('/', async (req, res) => {
   try {
-    const cargas = await db.query(`SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`, { type: QueryTypes.SELECT });
+    // CAMBIO CLAVE: SQL con ALIAS forzados para v_flete y v_facturar
+    const sql = `SELECT *, v_flete AS flete_final, v_facturar AS facturar_final FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
+    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
     let totalPendiente = 0;
 
     const filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
       
-      // SOLUCIÓN AGRESIVA: Busca el valor recorriendo las llaves del objeto por si Postgres cambió el nombre a minúsculas/mayúsculas
-      const fletePagarLogis = Number(c.v_flete || c.V_FLETE || c["v_flete"] || 0);
-      const fleteFacturarLogis = Number(c.v_facturar || c.V_FACTURAR || c["v_facturar"] || 0);
+      // Accedemos a los alias forzados en la consulta
+      const fletePagarLogis = Number(c.flete_final || 0);
+      const fleteFacturarLogis = Number(c.facturar_final || 0);
       
       if((f.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagarLogis;
 
