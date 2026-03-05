@@ -11,12 +11,12 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO BLINDADO: Usamos "field" para mapear exactamente a lo que Postgres espera
+// MODELO CORREGIDO: Usamos "field" para coincidir con la base de datos exactamente
 const Finanza = db.define('Finanza', {
   cargaId: { 
     type: DataTypes.INTEGER, 
     unique: true, 
-    field: 'cargaId' // Forzamos la I mayúscula para el JOIN
+    field: 'cargaId' // Mantiene la 'I' mayúscula tal como la pide tu DB
   },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'v_flete' },
   v_facturar: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'v_facturar' },
@@ -24,14 +24,14 @@ const Finanza = db.define('Finanza', {
   est_pago: { type: DataTypes.STRING, defaultValue: 'PENDIENTE', field: 'est_pago' }
 }, { tableName: 'Yego_Finanzas', timestamps: false });
 
-// TRADUCTOR DE FECHAS: Busca en todas las variantes posibles de la tabla Cargas
-const buscarFecha = (c) => {
+// BUSCADOR DE FECHA: Para capturar cualquier formato (f_doc, createdAt, etc.)
+const obtenerFecha = (c) => {
   return c.f_doc || c.fdoc || c.fecha || c.createdAt || c.createdat || '---';
 };
 
 app.get('/', async (req, res) => {
   try {
-    // SQL con comillas dobles obligatorias para evitar el error de las imágenes
+    // SQL con COMILLAS DOBLES en "cargaId" para solucionar el error de tu imagen
     const sql = `
       SELECT c.*, f.*, c.id AS main_id 
       FROM "Cargas" c
@@ -43,20 +43,20 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      // Extraemos valores asegurando que si son null, sean 0
+      // Forzamos la lectura de valores financieros
       const fleteP = parseFloat(c.v_flete || 0);
       const fleteF = parseFloat(c.v_facturar || 0);
       const saldo = parseFloat(c.saldo_a_pagar || 0);
-      const fechaCarga = buscarFecha(c);
+      const fecha = obtenerFecha(c);
 
       if ((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fleteP;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
-        <tr style="border-bottom: 1px solid #334155; font-size: 11px;">
+        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
           <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
-          <td style="${tdStyle}">${fechaCarga}</td>
+          <td style="${tdStyle}">${fecha}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
           <td style="${tdStyle}">${c.dest || '---'}</td>
@@ -80,6 +80,7 @@ app.get('/', async (req, res) => {
             <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
+        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white;">
         <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
           <table style="width:100%; border-collapse:collapse; background:#1e293b;">
             <thead style="background:#1e40af; color: white;">
@@ -89,17 +90,25 @@ app.get('/', async (req, res) => {
                 <th>FLETE PAGAR</th><th>FLETE FACTURAR</th><th>SALDO FINAL</th><th>ACCIÓN</th>
               </tr>
             </thead>
-            <tbody>${filas}</tbody>
+            <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
+        <script>
+          document.getElementById('buscador').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.fila-carga').forEach(f => {
+              f.style.display = f.getAttribute('data-placa').includes(term) ? '' : 'none';
+            });
+          });
+        </script>
       </body>`);
   } catch (err) { 
-    res.status(500).send(`<h3>Error Crítico</h3><p>${err.message}</p>`); 
+    res.status(500).send(`<h3>Error de Base de Datos</h3><p>${err.message}</p>`); 
   }
 });
 
 app.get('/editar/:id', async (req, res) => {
-  // Aseguramos que la búsqueda sea por la columna exacta con mayúscula
+  // findOrCreate ahora respeta el nombre exacto de la columna cargaId
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 40px;">
@@ -114,14 +123,13 @@ app.get('/editar/:id', async (req, res) => {
           <input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="padding:10px; background:#0f172a; color:#10b981; border:1px solid #10b981;">
           <button type="submit" style="padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">GUARDAR DATOS</button>
         </form>
-        <p style="text-align:center; margin-top:20px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al Listado</a></p>
+        <p style="text-align:center; margin-top:20px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver</a></p>
       </div>
     </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
   try {
-    // Upsert garantiza que se use la columna "cargaId" tal como Postgres la pide
     await Finanza.upsert({
       cargaId: req.params.id,
       v_flete: req.body.v_flete,
@@ -133,4 +141,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 SISTEMA YEGO REPARADO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO CORREGIDO')));
