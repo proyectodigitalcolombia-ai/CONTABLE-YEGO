@@ -110,7 +110,16 @@ app.get('/', async (req, res) => {
             </select>
           </td>
           <td id="valor-ant-${c.id}" style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">
+  <input 
+    type="text" 
+    id="input-sobre-${c.id}"
+    value="$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}" 
+    style="background: #0f172a; color: #fbbf24; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
+    onfocus="this.type='number'; this.value='${f.sobre_anticipo || 0}'"
+    onblur="formatToMoney(${c.id}, this)"
+  >
+</td>
           <td style="${tdStyle}">
             <select 
                 onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
