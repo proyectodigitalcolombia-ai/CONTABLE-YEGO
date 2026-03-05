@@ -182,7 +182,7 @@ app.get('/', async (req, res) => {
     if (nuevoEstado === "TRANSFERIDO") {
         const ahora = new Date();
         // Formato: DD/MM/YYYY HH:mm (Ej: 05/03/2026 14:30)
-        fechaActualizada = ahora.toLocaleString('es-CO', {
+        fechaActualizada = ahora.toLocaleDateoly('es-CO', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
