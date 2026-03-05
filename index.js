@@ -190,7 +190,9 @@ app.get('/', async (req, res) => {
                 onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
             >
             </td>
-          <td id="retefuente-${c.id}" style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
+          <td id="retefuente-${c.id}" style="${tdStyle}">
+  $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
+</td>
           <td id="reteica-${c.id}" style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
           <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
