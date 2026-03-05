@@ -110,20 +110,18 @@ app.get('/', async (req, res) => {
             </select>
           </td>
           <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
-          <td style="${tdStyle}">
-            <td style="${tdStyle}">
-  <select 
-    onchange="actualizarTipoCumplido(${c.id}, this.value)" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+
+<td style="${tdStyle}">
+  <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
     <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
     <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
     <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
   </select>
 </td>
+
 <td id="fecha-virtual-${c.id}" style="${tdStyle}">
   ${f.fecha_cump_virtual || '---'}
 </td>
-          <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos || 'NO')}</td>
