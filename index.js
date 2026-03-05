@@ -192,7 +192,9 @@ app.get('/', async (req, res) => {
     onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
   >
 </td>
-          <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
+          <td id="rete-${c.id}" style="${tdStyle}">
+  $${Number(f.retefuente || 0).toLocaleString('es-CO')}
+</td>
           <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
@@ -424,6 +426,26 @@ async function formatToMoneyDesc(cargaId, input) {
   } catch (e) { 
     console.error("Error al guardar la fecha:", e); 
   }
+}
+      async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
+    // ... (aquí va todo tu código actual de porcentajes) ...
+
+    // Al final, antes de cerrar la función, agrega esto:
+    await calcularReteAutomatica(cargaId, flete);
+}
+      async function calcularReteAutomatica(cargaId, flete) {
+    // Cálculo del 1%
+    const valorRete = Math.round(flete * 0.01);
+    
+    // Actualizamos visualmente la celda
+    const celdaRete = document.getElementById(`rete-${cargaId}`);
+    if (celdaRete) {
+        celdaRete.innerText = '$' + valorRete.toLocaleString('es-CO');
+        celdaRete.style.color = "#fbbf24"; // Un color naranja suave para resaltar el auto-calculo
+    }
+
+    // Guardamos el valor en la base de datos automáticamente
+    await actualizarEntrega(cargaId, 'retefuente', valorRete);
 }
         </script>
       </body>`);
