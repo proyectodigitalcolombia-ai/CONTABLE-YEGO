@@ -70,15 +70,22 @@ app.post('/api/update-cell', async (req, res) => {
 // --- VISTA PRINCIPAL GRID ---
 app.get('/', async (req, res) => {
   try {
-    // CORRECCIÓN: Usamos comillas dobles para que Postgres reconozca los nombres exactos de LogisV20
-    const cargas = await db.query(`SELECT *, "V_FLETE" AS f_pagar, "V_FACTURAR" AS f_facturar FROM "Cargas" WHERE "PLACA" IS NOT NULL AND "PLACA" != '' ORDER BY id DESC LIMIT 150`, { type: QueryTypes.SELECT });
+    // CORRECCIÓN: Selección explícita con comillas para evitar "column does not exist"
+    const sql = `
+      SELECT 
+        "id", "f_doc", "oficina", "orig", "dest", "cli", "cont", "ped", "placa", "muc", "f_act", "est_real",
+        "V_FLETE" AS f_pagar, 
+        "V_FACTURAR" AS f_facturar 
+      FROM "Cargas" 
+      WHERE "placa" IS NOT NULL AND "placa" != '' 
+      ORDER BY "id" DESC LIMIT 150`;
+
+    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
     let totalPendiente = 0;
 
     const filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
-      
-      // CORRECCIÓN: Acceso a los alias definidos en la consulta SQL y conversión a número
       const fletePagarLogis = Number(c.f_pagar || 0);
       const fleteFacturarLogis = Number(c.f_facturar || 0);
       
@@ -93,23 +100,21 @@ app.get('/', async (req, res) => {
         </td>`;
 
       return `
-        <tr class="fila" data-placa="${(c.PLACA || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
+        <tr class="fila" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
           <td style="${tdBase} color: #94a3b8;">#${c.id}</td>
-          <td style="${tdBase}">${c.F_DOC || ''}</td>
-          <td style="${tdBase}">${c.OFICINA || ''}</td>
-          <td style="${tdBase}">${c.ORIG || ''}</td>
-          <td style="${tdBase}">${c.DEST || ''}</td>
-          <td style="${tdBase}">${c.CLI || ''}</td>
-          <td style="${tdBase}">${c.CONT || ''}</td>
-          <td style="${tdBase}">${c.PED || ''}</td>
-          <td style="${tdBase} font-weight: bold; color: #60a5fa;">${c.PLACA || ''}</td>
-          <td style="${tdBase}">${c.MUC || ''}</td>
-          
+          <td style="${tdBase}">${c.f_doc || ''}</td>
+          <td style="${tdBase}">${c.oficina || ''}</td>
+          <td style="${tdBase}">${c.orig || ''}</td>
+          <td style="${tdBase}">${c.dest || ''}</td>
+          <td style="${tdBase}">${c.cli || ''}</td>
+          <td style="${tdBase}">${c.cont || ''}</td>
+          <td style="${tdBase}">${c.ped || ''}</td>
+          <td style="${tdBase} font-weight: bold; color: #60a5fa;">${c.placa || ''}</td>
+          <td style="${tdBase}">${c.muc || ''}</td>
           <td style="${tdBase} color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.05);">$${fletePagarLogis.toLocaleString('es-CO')}</td>
           <td style="${tdBase} color: #3b82f6; font-weight: bold; background: rgba(59, 130, 246, 0.05);">$${fleteFacturarLogis.toLocaleString('es-CO')}</td>
-          
-          <td style="${tdBase}">${c.F_ACT || ''}</td>
-          <td style="${tdBase} color: #fbbf24;">${c.EST_REAL || ''}</td>
+          <td style="${tdBase}">${c.f_act || ''}</td>
+          <td style="${tdBase} color: #fbbf24;">${c.est_real || ''}</td>
           
           ${excelCell('tipo_anticipo', f.tipo_anticipo)}
           ${excelCell('valor_anticipo', f.valor_anticipo)}
@@ -118,7 +123,6 @@ app.get('/', async (req, res) => {
           ${excelCell('fecha_pago_ant', f.fecha_pago_ant)}
           ${excelCell('tipo_cumplido', f.tipo_cumplido)}
           ${excelCell('fecha_cump_virtual', f.fecha_cump_virtual)}
-          
           ${excelCell('ent_manifiesto', f.ent_manifiesto)}
           ${excelCell('ent_remesa', f.ent_remesa)}
           ${excelCell('ent_hoja_tiempos', f.ent_hoja_tiempos)}
@@ -128,7 +132,6 @@ app.get('/', async (req, res) => {
           ${excelCell('ent_tiq_cargue', f.ent_tiq_cargue)}
           ${excelCell('ent_tiq_descargue', f.ent_tiq_descargue)}
           ${excelCell('presenta_novedades', f.presenta_novedades)}
-          
           ${excelCell('obs_novedad', f.obs_novedad, "min-width: 150px; text-align: left;")}
           ${excelCell('valor_descuento', f.valor_descuento, "color: #ef4444;")}
           ${excelCell('fecha_cump_docs', f.fecha_cump_docs)}
@@ -150,14 +153,9 @@ app.get('/', async (req, res) => {
       <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; margin:0; padding:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:15px; border-radius:10px; border:1px solid #334155; margin-bottom:15px;">
           <h2 style="margin:0; color:#3b82f6;">CONTROL FINANCIERO YEGO (MODO EXCEL)</h2>
-          <div style="text-align:right;">
-            <small style="color:#94a3b8;">PENDIENTE TOTAL</small><br>
-            <b style="font-size:22px; color:#10b981;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
-          </div>
+          <div style="text-align:right;"><small style="color:#94a3b8;">PENDIENTE TOTAL</small><br><b style="font-size:22px; color:#10b981;">$ ${totalPendiente.toLocaleString('es-CO')}</b></div>
         </div>
-
         <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px; outline:none;">
-
         <div style="overflow-x:auto; border:1px solid #334155; border-radius:10px;">
           <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width:6800px;">
             <thead style="background:#1e40af; color:white; font-size:10px; text-transform:uppercase;">
@@ -173,49 +171,29 @@ app.get('/', async (req, res) => {
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
-
         <script>
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.fila').forEach(tr => {
-              tr.style.display = tr.getAttribute('data-placa').includes(term) ? '' : 'none';
-            });
+            document.querySelectorAll('.fila').forEach(tr => { tr.style.display = tr.getAttribute('data-placa').includes(term) ? '' : 'none'; });
           });
-
           document.querySelectorAll('.edit-cell').forEach(cell => {
             cell.addEventListener('blur', async function() {
-              const payload = {
-                cargaId: this.getAttribute('data-id'),
-                campo: this.getAttribute('data-campo'),
-                valor: this.innerText.trim()
-              };
+              const payload = { cargaId: this.getAttribute('data-id'), campo: this.getAttribute('data-campo'), valor: this.innerText.trim() };
               this.style.background = 'rgba(59, 130, 246, 0.2)';
               try {
-                const res = await fetch('/api/update-cell', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-                if(res.ok) {
-                  this.style.background = 'rgba(16, 185, 129, 0.2)';
-                  setTimeout(() => this.style.background = 'rgba(255,255,255,0.02)', 800);
-                }
-              } catch (e) {
-                this.style.background = 'rgba(239, 68, 68, 0.3)';
-              }
+                const res = await fetch('/api/update-cell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(res.ok) { this.style.background = 'rgba(16, 185, 129, 0.2)'; setTimeout(() => this.style.background = 'rgba(255,255,255,0.02)', 800); }
+              } catch (e) { this.style.background = 'rgba(239, 68, 68, 0.3)'; }
             });
             cell.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); cell.blur(); } });
           });
         </script>
-        <style>
-          .edit-cell:focus { background: #0f172a !important; border: 1px solid #3b82f6 !important; border-radius: 4px; }
-          .edit-cell:hover { background: rgba(59, 130, 246, 0.1) !important; }
-        </style>
+        <style> .edit-cell:focus { background: #0f172a !important; border: 1px solid #3b82f6 !important; border-radius: 4px; } .edit-cell:hover { background: rgba(59, 130, 246, 0.1) !important; } </style>
       </body>`);
   } catch (err) { res.status(500).send(err.message); }
 });
 
-// --- RUTA EDICION MANUAL COMPLETA (FORMULARIO ROBUSTO) ---
+// --- RUTA EDICION MANUAL ---
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
