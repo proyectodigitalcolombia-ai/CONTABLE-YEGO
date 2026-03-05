@@ -11,6 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
+// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -44,8 +45,12 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
-// Función auxiliar para renderizar el estado visual en la tabla
-const checkStatus = (val) => val === 'SI' ? '<span style="color:#10b981; font-weight:bold;">✅ SI</span>' : '<span style="color:#ef4444;">❌ NO</span>';
+// FUNCIÓN PARA EL CHULO VISUAL EN LA TABLA
+const renderCheck = (val) => {
+  if (val === 'SI') return '<b style="color:#10b981;">✅ SI</b>';
+  if (val === 'NO') return '<span style="color:#ef4444;">❌ NO</span>';
+  return val || '---';
+};
 
 app.get('/', async (req, res) => {
   try {
@@ -57,7 +62,8 @@ app.get('/', async (req, res) => {
     let filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
       const fletePagar = Number(f.v_flete || 0);
-      if((f.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
+      const estadoContable = f.est_pago || "PENDIENTE";
+      if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
@@ -84,22 +90,22 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_manifiesto)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_remesa)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_hoja_tiempos)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_docs_cliente)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_facturas)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_tirilla_vacio)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_tiq_cargue)}</td>
-          <td style="${tdStyle}">${checkStatus(f.ent_tiq_descargue)}</td>
-          <td style="${tdStyle}">${checkStatus(f.presenta_novedades)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_manifiesto)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_remesa)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_hoja_tiempos)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_docs_cliente)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_facturas)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_tirilla_vacio)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_tiq_cargue)}</td>
+          <td style="${tdStyle}">${renderCheck(f.ent_tiq_descargue)}</td>
+          <td style="${tdStyle}">${renderCheck(f.presenta_novedades)}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
           <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
           <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
@@ -164,18 +170,18 @@ app.get('/', async (req, res) => {
 
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
-  
-  // Función para generar los botones Toggle
-  const renderToggle = (name, value) => {
-    const isSI = value === 'SI';
+
+  // GENERADOR DE BOTONES CLICKABLES
+  const toggleButton = (name, label, currentVal) => {
+    const isActive = currentVal === 'SI';
     return `
-      <div style="margin-bottom:10px;">
-        <label style="display:block; font-size:10px; color:#94a3b8; margin-bottom:4px; text-transform:uppercase;">${name.replace('ent_', '').replace('_', ' ')}</label>
-        <input type="hidden" name="${name}" id="input_${name}" value="${value}">
-        <button type="button" onclick="toggleBtn('${name}')" id="btn_${name}" 
-          style="width:100%; padding:10px; border-radius:6px; border:none; font-weight:bold; cursor:pointer; transition: 0.3s;
-          background: ${isSI ? '#065f46' : '#334155'}; color: ${isSI ? '#34d399' : '#94a3b8'};">
-          ${isSI ? '✅ ENTREGADO' : '❌ PENDIENTE'}
+      <div style="margin-bottom: 5px;">
+        <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">${label}</label>
+        <input type="hidden" name="${name}" id="input_${name}" value="${currentVal || 'NO'}">
+        <button type="button" onclick="toggleStatus('${name}')" id="btn_${name}" 
+          style="width:100%; padding:10px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; transition: 0.3s;
+          background: ${isActive ? '#065f46' : '#334155'}; color: ${isActive ? '#34d399' : '#94a3b8'};">
+          ${isActive ? '✅ ENTREGADO' : '❌ PENDIENTE'}
         </button>
       </div>
     `;
@@ -184,41 +190,38 @@ app.get('/editar/:id', async (req, res) => {
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
       <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">VALIDACIÓN DE DOCUMENTACIÓN #${req.params.id}</h2>
-        <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${req.params.id}</h2>
+        <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+          <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
+          <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
+          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
           
-          <div style="background:rgba(59, 130, 246, 0.05); padding:15px; border-radius:8px; border:1px solid #334155;">
-             <p style="color:#3b82f6; font-weight:bold; margin-top:0;">VALORES PRINCIPALES</p>
-             <div><label style="font-size:11px;">FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155; margin-bottom:10px;"></div>
-             <div><label style="font-size:11px;">FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          </div>
-
-          <div style="grid-column: span 2; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155;">
-             <p style="margin:0 0 15px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (PULSE PARA VALIDAR)</p>
-             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                ${renderToggle('ent_manifiesto', f.ent_manifiesto)}
-                ${renderToggle('ent_remesa', f.ent_remesa)}
-                ${renderToggle('ent_hoja_tiempos', f.ent_hoja_tiempos)}
-                ${renderToggle('ent_docs_cliente', f.ent_docs_cliente)}
-                ${renderToggle('ent_facturas', f.ent_facturas)}
-                ${renderToggle('ent_tirilla_vacio', f.ent_tirilla_vacio)}
-                ${renderToggle('ent_tiq_cargue', f.ent_tiq_cargue)}
-                ${renderToggle('ent_tiq_descargue', f.ent_tiq_descargue)}
-                ${renderToggle('presenta_novedades', f.presenta_novedades)}
+          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+             <p style="grid-column: span 4; margin:0; color:#3b82f6; font-weight:bold; border-bottom: 1px solid #1e293b; padding-bottom:10px;">VALIDACIÓN RÁPIDA DE DOCUMENTOS</p>
+             ${toggleButton('ent_manifiesto', 'MANIFIESTO', f.ent_manifiesto)}
+             ${toggleButton('ent_remesa', 'REMESA', f.ent_remesa)}
+             ${toggleButton('ent_hoja_tiempos', 'HOJA TIEMPOS', f.ent_hoja_tiempos)}
+             ${toggleButton('ent_docs_cliente', 'DOCS CLIENTE', f.ent_docs_cliente)}
+             ${toggleButton('ent_facturas', 'FACTURAS', f.ent_facturas)}
+             ${toggleButton('ent_tirilla_vacio', 'TIRILLA VACÍO', f.ent_tirilla_vacio)}
+             ${toggleButton('ent_tiq_cargue', 'TIQ. CARGUE', f.ent_tiq_cargue)}
+             ${toggleButton('ent_tiq_descargue', 'TIQ. DESCARGUE', f.ent_tiq_descargue)}
+             <div style="grid-column: span 4;">
+                ${toggleButton('presenta_novedades', '¿PRESENTA NOVEDADES?', f.presenta_novedades)}
              </div>
           </div>
 
-          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; border:1px solid #334155; color:white;"></div>
-          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; border:1px solid #334155; color:white;"></div>
-          <div><label>SALDO FINAL</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; border:1px solid #10b981; color:#10b981; font-weight:bold;"></div>
+          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
 
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR Y GUARDAR ESTADOS</button>
+          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px; margin-top:10px;">ACTUALIZAR Y GUARDAR CAMBIOS</button>
         </form>
 
         <script>
-          function toggleBtn(name) {
-            const input = document.getElementById('input_' + name);
-            const btn = document.getElementById('btn_' + name);
+          function toggleStatus(id) {
+            const input = document.getElementById('input_' + id);
+            const btn = document.getElementById('btn_' + id);
             if (input.value === 'SI') {
               input.value = 'NO';
               btn.innerText = '❌ PENDIENTE';
@@ -232,7 +235,7 @@ app.get('/editar/:id', async (req, res) => {
             }
           }
         </script>
-        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado</a></p>
+        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
       </div>
     </body>`);
 });
@@ -243,4 +246,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID INTERACTIVO')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID INTERACTIVO ACTUALIZADO')));
