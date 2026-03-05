@@ -388,13 +388,15 @@ app.get('/', async (req, res) => {
   }
   await actualizarEntrega(cargaId, 'presenta_novedades', valor);
 }
-        async function formatToMoneyDesc(cargaId, input) {
+async function formatToMoneyDesc(cargaId, input) {
   let numValue = input.value || 0;
+  
+  // Forzamos que sea texto para mostrar el formato
   input.type = 'text';
   input.value = '$' + Number(numValue).toLocaleString('es-CO');
   
-  // Guardar el valor numérico en la base de datos
-  await actualizarEntrega(cargaId, 'valor_descuento', numValue);
+  // Guardamos el número puro en la base de datos
+  await actualizarEntrega(cargaId, 'valor_descuento', 0);
 }
         </script>
       </body>`);
