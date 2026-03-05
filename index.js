@@ -1,42 +1,44 @@
 const express = require('express');
-const { Sequelize, DataTypes, QueryTypes } = require('sequelize');
+const { Sequelize, QueryTypes } = require('sequelize');
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// 1. CONEXIÓN LIMPIA (NODE_VERSION 20)
+// 1. CONEXIÓN DIRECTA
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// 2. TABLA YEGO_FINANZAS (La que nosotros creamos y controlamos)
-const Finanza = db.define('Finanza', {
-  cargaId: { type: DataTypes.INTEGER, unique: true },
-  v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
-  est_pago: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' }
-}, { tableName: 'Yego_Finanzas' });
-
-// 3. RUTA PRINCIPAL - CONSULTA PURA Y DURA
+// 2. RUTA PRINCIPAL (Sin Modelos, solo SQL directo)
 app.get('/', async (req, res) => {
   try {
-    // Traemos los datos de la plataforma logística con SQL puro
-    // Usamos comillas dobles solo para el nombre de la tabla si es necesario
+    // Primero, creamos la tabla de finanzas si no existe (SQL PURO)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS "Yego_Finanzas" (
+        "cargaId" INTEGER UNIQUE,
+        "v_flete" DECIMAL(15,2) DEFAULT 0,
+        "est_pago" VARCHAR(255) DEFAULT 'PENDIENTE'
+      );
+    `);
+
+    // Traemos los datos de Cargas (Encerrado exacto para Postgres)
     const cargas = await db.query('SELECT * FROM "Cargas" ORDER BY "ID" DESC LIMIT 100', {
       type: QueryTypes.SELECT
     });
 
-    // Traemos nuestros datos de pagos aparte
-    const pagos = await Finanza.findAll();
+    // Traemos los datos de nuestras finanzas
+    const finanzas = await db.query('SELECT * FROM "Yego_Finanzas"', {
+      type: QueryTypes.SELECT
+    });
 
-    // Hacemos el cruce de datos manualmente (Cero riesgo de error de columna)
     let filas = cargas.map(c => {
-      const p = pagos.find(pago => pago.cargaId === c.ID);
-      const flete = p ? Number(p.v_flete).toLocaleString() : "0";
-      const estado = p ? p.est_pago : "PENDIENTE";
-      const colorEstado = estado === 'PAGADO' ? '#065f46' : '#7f1d1d';
+      // Cruce manual en memoria: Evitamos que SQL falle por asociaciones
+      const f = finanzas.find(fin => fin.cargaId === c.ID);
+      const flete = f ? Number(f.v_flete).toLocaleString() : "0";
+      const estado = f ? f.est_pago : "PENDIENTE";
 
       return `
         <tr style="border-bottom:1px solid #334155">
@@ -45,59 +47,60 @@ app.get('/', async (req, res) => {
           <td>${c.CLIENTE || '---'}</td>
           <td>${c["FECHA DESPACHO"] || '---'}</td>
           <td style="color:#10b981; font-weight:bold">$ ${flete}</td>
-          <td><span style="background:${colorEstado}; padding:4px 8px; border-radius:5px; font-size:11px">${estado}</span></td>
-          <td><a href="/editar/${c.ID}" style="color:#3b82f6; text-decoration:none; font-weight:bold">LIQUIDAR</a></td>
+          <td style="background:${estado === 'PAGADO' ? '#064e3b' : '#450a0a'}">${estado}</td>
+          <td><a href="/editar/${c.ID}" style="color:#3b82f6; font-weight:bold">LIQUIDAR</a></td>
         </tr>`;
     }).join('');
 
     res.send(`
       <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:20px">
-        <h2 style="color:#3b82f6">💰 Panel Contable YEGO</h2>
+        <h2 style="color:#3b82f6">📊 CONTROL DE OPERACIONES YEGO</h2>
         <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:10px; overflow:hidden">
           <thead style="background:#1e40af">
-            <tr>
-              <th style="padding:12px; text-align:left">ID</th>
-              <th style="text-align:left">PLACA</th>
-              <th style="text-align:left">CLIENTE</th>
-              <th style="text-align:left">DESPACHO</th>
-              <th style="text-align:left">VALOR FLETE</th>
-              <th style="text-align:left">ESTADO</th>
-              <th style="text-align:left">ACCIÓN</th>
-            </tr>
+            <tr><th>ID</th><th>PLACA</th><th>CLIENTE</th><th>DESPACHO</th><th>VALOR FLETE</th><th>ESTADO</th><th>ACCION</th></tr>
           </thead>
-          <tbody>${filas}</tbody>
+          <tbody>\${filas}</tbody>
         </table>
       </body>`);
   } catch (err) {
-    res.status(500).send("<h3>Error de Sincronización</h3><p>" + err.message + "</p>");
+    res.status(500).send("<h3>ERROR CRÍTICO:</h3><p>" + err.message + "</p>");
   }
 });
 
-// 4. RUTAS DE ACTUALIZACIÓN (SIN CAMBIOS, YA FUNCIONAN)
+// 3. RUTA EDITAR (SQL PURO)
 app.get('/editar/:id', async (req, res) => {
-  const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
+  const id = req.params.id;
+  const [f] = await db.query('SELECT * FROM "Yego_Finanzas" WHERE "cargaId" = ?', {
+    replacements: [id], type: QueryTypes.SELECT
+  });
+  
   res.send(`
-    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:40px">
-      <div style="background:#1e293b; padding:25px; border-radius:15px; max-width:350px; margin:auto; border:1px solid #3b82f6">
-        <h3>Liquidación #${req.params.id}</h3>
-        <form action="/guardar/${req.params.id}" method="POST">
-          <label>VALOR FLETE:</label><br>
-          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; margin:10px 0; padding:10px; background:#0f172a; color:#10b981; border:1px solid #334155; font-size:18px">
-          <label>ESTADO:</label><br>
-          <select name="est_pago" style="width:100%; margin:10px 0; padding:10px; background:#0f172a; color:white; border:1px solid #334155">
-            <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
-            <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
-          </select><br><br>
-          <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold">GUARDAR</button>
-        </form>
-      </div>
+    <body style="background:#0f172a; color:#f1f5f9; padding:50px">
+      <form action="/guardar/\${id}" method="POST" style="background:#1e293b; padding:20px; border-radius:10px; max-width:300px; margin:auto">
+        <h3>Servicio #\${id}</h3>
+        Valor Flete: <input type="number" name="v_flete" value="\${f ? f.v_flete : 0}" style="width:100%; margin:10px 0; padding:10px"><br>
+        Estado: <select name="est_pago" style="width:100%; margin:10px 0; padding:10px">
+          <option \${f?.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+          <option \${f?.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+        </select><br>
+        <button type="submit" style="width:100%; padding:10px; background:#2563eb; color:white; border:none; cursor:pointer">GUARDAR</button>
+      </form>
     </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
+  const { v_flete, est_pago } = req.body;
+  const id = req.params.id;
+  
+  // Guardado usando "ON CONFLICT" (Si existe actualiza, si no inserta)
+  await db.query(\`
+    INSERT INTO "Yego_Finanzas" ("cargaId", "v_flete", "est_pago") 
+    VALUES (?, ?, ?) 
+    ON CONFLICT ("cargaId") 
+    DO UPDATE SET "v_flete" = EXCLUDED."v_flete", "est_pago" = EXCLUDED."est_pago"\`, {
+    replacements: [id, v_flete, est_pago]
+  });
   res.redirect('/');
 });
 
-const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 Operativo')));
+app.listen(process.env.PORT || 3000, () => console.log('🚀 YEGO PROTEGIDO'));
