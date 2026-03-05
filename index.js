@@ -222,21 +222,35 @@ app.get('/', async (req, res) => {
           }
 
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-              let porcentaje = 0;
-              if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-              else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
-              else if (valorSeleccionado.includes("TOTAL")) porcentaje = 1.0;
-              
-              const valorCalculado = Math.round(flete * porcentaje);
-              try {
-                  await fetch('/actualizar-anticipo-directo', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ cargaId, tipo_anticipo: valorSeleccionado, valor_anticipo: valorCalculado })
-                  });
-                  location.reload(); 
-              } catch (e) { console.error(e); }
-          }
+    let porcentaje = 0;
+
+    // Lógica dinámica: busca cualquier número seguido de % dentro del texto
+    if (valorSeleccionado.includes("%")) {
+        let extraido = valorSeleccionado.match(/(\d+)%/);
+        if (extraido) {
+            porcentaje = parseInt(extraido[1]) / 100;
+        }
+    } else if (valorSeleccionado.includes("TOTAL")) {
+        porcentaje = 1.0;
+    }
+
+    const valorCalculado = Math.round(flete * porcentaje);
+
+    try {
+        await fetch('/actualizar-anticipo-directo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                cargaId, 
+                tipo_anticipo: valorSeleccionado, 
+                valor_anticipo: valorCalculado 
+            })
+        });
+        location.reload(); // Recarga para ver el nuevo valor calculado en la celda
+    } catch (e) { 
+        console.error("Error al calcular anticipo:", e); 
+    }
+}
 
           async function actualizarEstadoFinanciero(id, nuevoEstado) {
               let fecha = nuevoEstado === "TRANSFERIDO" ? new Date().toISOString().split('T')[0] : null;
