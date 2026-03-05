@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO ORIGINAL - SIN CAMBIOS EN LA BASE
+// MODELO ORIGINAL - SIN ALTERAR LA ESTRUCTURA DE LA BASE
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -46,25 +46,19 @@ const Finanza = db.define('Finanza', {
 }, { tableName: 'Yego_Finanzas', timestamps: false });
 
 const statusCheck = (val) => {
-  if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
-  if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
+  const v = String(val || '').trim().toUpperCase();
+  if (v === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
+  if (v === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
   return val || '---';
 };
 
 app.get('/', async (req, res) => {
   try {
-    // CONSULTA REFORZADA: Renombramos los campos explícitamente para evitar conflictos
+    // EL CAMBIO MAESTRO: Forzamos la unión por texto y recortamos espacios (TRIM)
     const sql = `
-      SELECT 
-        c.id as cid, c.f_doc, c.oficina, c.orig, c.dest, c.cli, c.cont, c.ped, c.placa, c.muc, c.f_act, c.est_real,
-        f.v_flete, f.v_facturar, f.est_pago, f.tipo_anticipo, f.valor_anticipo, f.sobre_anticipo, 
-        f.estado_ant, f.fecha_pago_ant, f.tipo_cumplido, f.fecha_cump_virtual, f.ent_manifiesto, 
-        f.ent_remesa, f.ent_hoja_tiempos, f.ent_docs_cliente, f.ent_facturas, f.ent_tirilla_vacio, 
-        f.ent_tiq_cargue, f.ent_tiq_descargue, f.presenta_novedades, f.obs_novedad, f.valor_descuento, 
-        f.fecha_cump_docs, f.fecha_legalizacion, f.retefuente, f.reteica, f.saldo_a_pagar, 
-        f.estado_final, f.dias_sin_pagar, f.dias_sin_cumplir
+      SELECT c.*, f.*, c.id AS main_id 
       FROM "Cargas" c
-      LEFT JOIN "Yego_Finanzas" f ON c.id = f."cargaId"
+      LEFT JOIN "Yego_Finanzas" f ON TRIM(CAST(c.id AS TEXT)) = TRIM(CAST(f."cargaId" AS TEXT))
       WHERE c.placa IS NOT NULL AND c.placa != '' 
       ORDER BY c.id DESC LIMIT 150`;
     
@@ -72,18 +66,16 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      // Forzamos la conversión a número para evitar el $0 por error de texto
-      const fletePagar = parseFloat(c.v_flete) || 0;
-      const fleteFacturar = parseFloat(c.v_facturar) || 0;
-      const saldoFinal = parseFloat(c.saldo_a_pagar) || 0;
-      
+      // Limpieza de nulos para cálculos precisos
+      const fletePagar = parseFloat(c.v_flete || 0);
+      const fleteFacturar = parseFloat(c.v_facturar || 0);
       if((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.cid}</td>
+          <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
           <td style="${tdStyle}">${c.f_doc || '---'}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
@@ -98,8 +90,8 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">${c.tipo_anticipo || '---'}</td>
-          <td style="${tdStyle}">$${(parseFloat(c.valor_anticipo)||0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${(parseFloat(c.sobre_anticipo)||0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(c.valor_anticipo || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(c.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.estado_ant || '---'}</td>
           <td style="${tdStyle}">${c.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${c.tipo_cumplido || '---'}</td>
@@ -114,17 +106,17 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue)}</td>
           <td style="${tdStyle}">${statusCheck(c.presenta_novedades)}</td>
           <td style="${tdStyle}">${c.obs_novedad || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">$${(parseFloat(c.valor_descuento)||0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #ef4444;">$${parseFloat(c.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.fecha_cump_docs || '---'}</td>
           <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
-          <td style="${tdStyle}">$${(parseFloat(c.retefuente)||0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${(parseFloat(c.reteica)||0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${saldoFinal.toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(c.retefuente || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(c.reteica || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${parseFloat(c.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${c.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${c.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.cid}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <a href="/editar/${c.main_id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
@@ -179,7 +171,7 @@ app.get('/', async (req, res) => {
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error: " + err.message); }
+  } catch (err) { res.status(500).send("Error crítico: " + err.message); }
 });
 
 app.get('/editar/:id', async (req, res) => {
@@ -225,9 +217,17 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
-  res.redirect('/');
+  try {
+    // Usamos cargaId explícitamente para asegurar la relación
+    await Finanza.upsert({
+      cargaId: req.params.id,
+      ...req.body
+    });
+    res.redirect('/');
+  } catch (error) {
+    res.status(500).send("Error al guardar: " + error.message);
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL OPERACIONAL')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 SISTEMA YEGO ACTIVO')));
