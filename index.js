@@ -19,12 +19,14 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    // FILTRO CRÍTICO: Solo servicios con placa y con est_real = 'OK'
+    // AMPLIAMOS EL FILTRO: 
+    // Ahora busca cualquier registro que tenga placa (no nula y no vacía)
+    // Eliminamos la obligatoriedad del 'OK' para ver si esas 2 placas aparecen
     const sql = `
       SELECT * FROM "Cargas" 
       WHERE placa IS NOT NULL 
       AND placa != '' 
-      AND est_real = 'OK' 
+      AND placa != '---'
       ORDER BY id DESC 
       LIMIT 200`;
 
@@ -50,7 +52,7 @@ app.get('/', async (req, res) => {
           <td style="padding: 5px 8px;">
             <span style="background: ${estado === 'PAGADO' ? '#065f46' : '#7f1d1d'}; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${estado}</span>
           </td>
-          <td style="padding: 5px 8px; font-size: 11px; color: #94a3b8;">${c.desp || '---'}</td>
+          <td style="padding: 5px 8px; font-size: 11px; color: #94a3b8;">${c.est_real || '---'}</td>
           <td style="padding: 5px 8px;">
             <a href="/editar/${idReal}" style="color: #3b82f6; text-decoration: none; font-weight: bold; font-size: 11px;">[LIQUIDAR]</a>
           </td>
@@ -59,10 +61,10 @@ app.get('/', async (req, res) => {
 
     res.send(`
       <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', Tahoma, sans-serif; padding:15px; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 10px; border-radius: 8px; border-left: 4px solid #10b981;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 10px; border-radius: 8px; border-left: 4px solid #3b82f6;">
           <div>
             <h3 style="color:#3b82f6; margin:0; font-size: 16px;">🚛 YEGO CONTABLE V20</h3>
-            <small style="color: #10b981;">Filtro: Solo despachos con Placa y OK</small>
+            <small style="color: #94a3b8;">Mostrando todos los servicios con placa asignada</small>
           </div>
           <div style="text-align: right;">
             <small style="color:#94a3b8; font-size: 10px;">PENDIENTE POR COBRO:</small><br>
@@ -70,7 +72,7 @@ app.get('/', async (req, res) => {
           </div>
         </div>
 
-        <input type="text" id="buscador" placeholder="🔍 Buscar placa en listado filtrado..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:5px; border:1px solid #334155; background:#1e293b; color:white; font-size: 13px;">
+        <input type="text" id="buscador" placeholder="🔍 Buscar placa..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:5px; border:1px solid #334155; background:#1e293b; color:white; font-size: 13px;">
 
         <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:5px; overflow:hidden;">
           <thead style="background:#1e40af; font-size: 12px;">
@@ -81,7 +83,7 @@ app.get('/', async (req, res) => {
               <th style="text-align:left;">DESPACHO</th>
               <th style="text-align:left;">FLETE</th>
               <th style="text-align:left;">ESTADO</th>
-              <th style="text-align:left;">DESP.</th>
+              <th style="text-align:left;">EST. REAL</th>
               <th style="text-align:left;">ACCIÓN</th>
             </tr>
           </thead>
@@ -97,10 +99,10 @@ app.get('/', async (req, res) => {
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error en filtro: " + err.message); }
+  } catch (err) { res.status(500).send("Error en consulta: " + err.message); }
 });
 
-// Rutas de edición (Se mantienen igual)
+// Rutas de edición (se mantienen igual)
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -117,7 +119,7 @@ app.get('/editar/:id', async (req, res) => {
           </select>
           <button type="submit" style="width:100%; padding:10px; background:#2563eb; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px;">GUARDAR</button>
         </form>
-        <p style="text-align:center;"><a href="/" style="color:#94a3b8; text-decoration:none; font-size:11px;">← Cancelar</a></p>
+        <p style="text-align:center;"><a href="/" style="color:#94a3b8; text-decoration:none; font-size:11px;">← Volver</a></p>
       </div>
     </body>`);
 });
@@ -128,4 +130,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 Filtros OK aplicados')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 Filtro amplio activado')));
