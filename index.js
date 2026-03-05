@@ -90,9 +90,12 @@ app.get('/', async (req, res) => {
               onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
               style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
               <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
+              <option value="Anticipo parcial (60%)" ${f.tipo_anticipo === 'Anticipo parcial (60%)' ? 'selected' : ''}>60%</option>
               <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>70%</option>
               <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>65%</option>
+              <option value="Anticipo parcial (75%)" ${f.tipo_anticipo === 'Anticipo parcial (75%)' ? 'selected' : ''}>75%</option>
               <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>50%</option>
+              <option value="Anticipo parcial (100%)" ${f.tipo_anticipo === 'Anticipo parcial (100%)' ? 'selected' : ''}>100%</option>
               <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
             </select>
           </td>
@@ -183,6 +186,10 @@ app.get('/', async (req, res) => {
     if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
     else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
     else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+    else if (valorSeleccionado.includes("60%")) porcentaje = 0.60;
+    else if (valorSeleccionado.includes("75%")) porcentaje = 0.75;
+    else if (valorSeleccionado.includes("100%")) porcentaje = 1;
+    
 
     const valorCalculado = Math.round(flete * porcentaje);
     
