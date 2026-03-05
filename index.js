@@ -77,9 +77,9 @@ app.get('/', async (req, res) => {
     const filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
       
-      // ARRASTRE DE INFORMACION REAL DE LOGISV20
-      const fletePagarLogis = Number(c.v_flete || 0);
-      const fleteFacturarLogis = Number(c.v_facturar || 0);
+      // CORRECCIÓN: Acceso explícito a las columnas de la tabla Cargas
+      const fletePagarLogis = Number(c.v_flete || c.V_FLETE || 0);
+      const fleteFacturarLogis = Number(c.v_facturar || c.V_FACTURAR || 0);
       
       if((f.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagarLogis;
 
