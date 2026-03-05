@@ -52,15 +52,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.05);">$${fletePagar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle} color: #3b82f6; font-weight: bold; background: rgba(59, 130, 246, 0.05);">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
-          <td style="${tdStyle} font-weight: bold; color: #fbbf24;">${estadoLogisV20}</td>
-          <td style="${tdStyle}">
-            <span style="background: ${estadoContable === 'PAGADO' ? '#065f46' : '#7f1d1d'}; padding: 3px 8px; border-radius: 4px; font-size: 10px;">
-              ${estadoContable}
-            </span>
-          </td>
-          <td style="padding: 8px; text-align: center;">
-            <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
-          </td>
+          <td style="padding: 8px; text-align: center; font-weight: bold; color: #fbbf24;">${estadoLogisV20}</td>
         </tr>`;
     }).join('');
 
@@ -83,7 +75,7 @@ app.get('/', async (req, res) => {
         <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:10px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline: none; box-sizing: border-box;">
 
         <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 1400px;">
+          <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 1200px;">
             <thead style="background:#1e40af; color: white; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
               <tr>
                 <th style="${thStyle}">ID</th>
@@ -99,9 +91,7 @@ app.get('/', async (req, res) => {
                 <th style="${thStyle} background: #064e3b;">F. PAGAR</th>
                 <th style="${thStyle} background: #1e3a8a;">F. FACTURAR</th>
                 <th style="${thStyle}">ACTUALIZACIÓN</th>
-                <th style="${thStyle} color: #fbbf24;">ESTADO FINAL (LOGIS)</th>
-                <th style="${thStyle} color: #10b981;">ESTADO (PAGOS)</th>
-                <th style="padding:12px 8px; text-align: center; border-bottom: 2px solid #3b82f6;">ACCIÓN</th>
+                <th style="padding:12px 8px; text-align: center; border-bottom: 2px solid #3b82f6; color: #fbbf24;">ESTADO FINAL (LOGIS)</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -120,7 +110,6 @@ app.get('/', async (req, res) => {
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
-// Rutas de edición y guardado se mantienen igual...
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -152,4 +141,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID COMPLETO')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID ACTUALIZADO')));
