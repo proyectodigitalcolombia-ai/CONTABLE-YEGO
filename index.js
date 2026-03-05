@@ -193,7 +193,28 @@ app.get('/', async (req, res) => {
           <td id="retefuente-${c.id}" style="${tdStyle}">
   $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
 </td>
-          <td id="reteica-${c.id}" style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
+          <<td id="reteica-${c.id}" style="${tdStyle}">
+  ${(() => {
+    const flete = Number(f.v_flete) || Number(c.f_p) || 0;
+    const origen = (c.orig || '').toUpperCase();
+    
+    let tarifa;
+    
+    // Lógica de ciudades con tarifas especiales
+    if (origen.includes("BUENAVENTURA")) {
+        tarifa = 0.004; // 4 por mil
+    } else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) {
+        tarifa = 0.007; // 7 por mil (Común en zonas portuarias del norte)
+    } else if (origen.includes("YUMBO") || origen.includes("FUNZA")) {
+        tarifa = 0.005; // 5 por mil (Zonas industriales específicas)
+    } else {
+        tarifa = 0.01;  // 10 por mil (Tarifa general: Bogotá, Medellín, Cali, etc.)
+    }
+    
+    const valorIca = Math.round(flete * tarifa);
+    return '$' + valorIca.toLocaleString('es-CO');
+  })()}
+</td>
           <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
@@ -388,6 +409,20 @@ app.get('/', async (req, res) => {
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
+});
+
+const origen = (req.body.origen || '').toUpperCase();
+let tarifaIca = 0.01; // Default
+
+if (origen.includes("BUENAVENTURA")) {
+    tarifaIca = 0.004;
+} else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) {
+    tarifaIca = 0.007;
+} else if (origen.includes("YUMBO") || origen.includes("FUNZA")) {
+    tarifaIca = 0.005;
+}
+
+const reteica = Math.round(flete * tarifaIca);}
 });
 
 app.post('/actualizar-entrega', async (req, res) => {
