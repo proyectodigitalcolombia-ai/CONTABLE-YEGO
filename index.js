@@ -11,12 +11,12 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO CORREGIDO: Usamos "field" para coincidir con la base de datos exactamente
+// MODELO: Usamos "field" para mapear exactamente a las columnas con mayúsculas de tu DB
 const Finanza = db.define('Finanza', {
   cargaId: { 
     type: DataTypes.INTEGER, 
     unique: true, 
-    field: 'cargaId' // Mantiene la 'I' mayúscula tal como la pide tu DB
+    field: 'cargaId' // <-- CLAVE: Esto obliga a Sequelize a usar "cargaId"
   },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'v_flete' },
   v_facturar: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'v_facturar' },
@@ -24,14 +24,14 @@ const Finanza = db.define('Finanza', {
   est_pago: { type: DataTypes.STRING, defaultValue: 'PENDIENTE', field: 'est_pago' }
 }, { tableName: 'Yego_Finanzas', timestamps: false });
 
-// BUSCADOR DE FECHA: Para capturar cualquier formato (f_doc, createdAt, etc.)
-const obtenerFecha = (c) => {
+// Función para capturar la fecha de registro sin importar el nombre de columna en "Cargas"
+const getFecha = (c) => {
   return c.f_doc || c.fdoc || c.fecha || c.createdAt || c.createdat || '---';
 };
 
 app.get('/', async (req, res) => {
   try {
-    // SQL con COMILLAS DOBLES en "cargaId" para solucionar el error de tu imagen
+    // SQL MANUAL: Usamos comillas dobles en "cargaId" para resolver el error de la imagen
     const sql = `
       SELECT c.*, f.*, c.id AS main_id 
       FROM "Cargas" c
@@ -43,11 +43,11 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      // Forzamos la lectura de valores financieros
+      // Extraemos valores asegurando que no sean nulos para que no salga $0
       const fleteP = parseFloat(c.v_flete || 0);
       const fleteF = parseFloat(c.v_facturar || 0);
       const saldo = parseFloat(c.saldo_a_pagar || 0);
-      const fecha = obtenerFecha(c);
+      const fechaCarga = getFecha(c);
 
       if ((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fleteP;
 
@@ -56,7 +56,7 @@ app.get('/', async (req, res) => {
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
           <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
-          <td style="${tdStyle}">${fecha}</td>
+          <td style="${tdStyle}">${fechaCarga}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
           <td style="${tdStyle}">${c.dest || '---'}</td>
@@ -80,14 +80,14 @@ app.get('/', async (req, res) => {
             <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
-        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white;">
+        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline:none;">
         <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
           <table style="width:100%; border-collapse:collapse; background:#1e293b;">
             <thead style="background:#1e40af; color: white;">
               <tr>
                 <th style="padding:12px;">ID</th><th>FECHA REGISTRO</th><th>OFICINA</th>
                 <th>ORIGEN</th><th>DESTINO</th><th>CLIENTE</th><th>PLACA</th>
-                <th>FLETE PAGAR</th><th>FLETE FACTURAR</th><th>SALDO FINAL</th><th>ACCIÓN</th>
+                <th>FLETE PAGAR</th><th>FLETE FACTURAR</th><th>SALDO FINAL</th><th>ACCION</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -96,24 +96,24 @@ app.get('/', async (req, res) => {
         <script>
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.fila-carga').forEach(f => {
-              f.style.display = f.getAttribute('data-placa').includes(term) ? '' : 'none';
+            document.querySelectorAll('.fila-carga').forEach(row => {
+              row.style.display = row.getAttribute('data-placa').includes(term) ? '' : 'none';
             });
           });
         </script>
       </body>`);
   } catch (err) { 
-    res.status(500).send(`<h3>Error de Base de Datos</h3><p>${err.message}</p>`); 
+    res.status(500).send(`<h3>Error de Conexión</h3><p>${err.message}</p>`); 
   }
 });
 
 app.get('/editar/:id', async (req, res) => {
-  // findOrCreate ahora respeta el nombre exacto de la columna cargaId
+  // findOrCreate respetando el mapeo "cargaId"
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 40px;">
       <div style="max-width:450px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center;">Carga #${req.params.id}</h2>
+        <h2 style="color:#3b82f6; text-align: center;">Liquidar Carga #${req.params.id}</h2>
         <form action="/guardar/${req.params.id}" method="POST" style="display: flex; flex-direction: column; gap: 15px;">
           <label>Flete a Pagar:</label>
           <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="padding:10px; background:#0f172a; color:white; border:1px solid #334155;">
@@ -141,4 +141,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO CORREGIDO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO OPERATIVO')));
