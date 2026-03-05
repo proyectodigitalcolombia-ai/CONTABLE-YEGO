@@ -108,7 +108,7 @@ app.get('/', async (req, res) => {
         
     </select>
 </td>
-          <td id="fecha-pago-${c.id}" style="${tdStyle}">
+          <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
     ${f.fecha_pago_ant || '---'}
 </td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
