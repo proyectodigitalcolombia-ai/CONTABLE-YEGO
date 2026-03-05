@@ -65,7 +65,7 @@ app.get('/', async (req, res) => {
       const fleteFacturar = Number(f.v_facturar) > 0 ? Number(f.v_facturar) : Number(c.f_f || 0);
       const fechaRegistro = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-CO') : '---';
       const estadoContable = f.est_pago || "PENDIENTE";
-            if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
+      if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
@@ -85,17 +85,17 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
-         <td style="${tdStyle}">
-  <select 
-    onchange="actualizarAnticipoRapido(${c.id}, this.value)" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
-    <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
-    <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>70%</option>
-    <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>65%</option>
-    <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>50%</option>
-    <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
-  </select>
-</td>
+          <td style="${tdStyle}">
+            <select 
+              onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
+              style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+              <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
+              <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>70%</option>
+              <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>65%</option>
+              <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>50%</option>
+              <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
+            </select>
+          </td>
           <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_ant || '---'}</td>
@@ -168,38 +168,35 @@ app.get('/', async (req, res) => {
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
+        
         <script>
-        async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-    // 1. Extraer el porcentaje del texto (ej: "70%")
-    let porcentaje = 0;
-    if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-    else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
-    else if (seleccion.includes("50%")) porcentaje = 0.50;
+          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
+            let porcentaje = 0;
+            if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
+            else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
+            else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
 
-    // 2. Calcular el valor
-    const valorCalculado = Math.round(flete * porcentaje);
+            const valorCalculado = Math.round(flete * porcentaje);
 
-    // 3. Enviar a la base de datos para que quede guardado
-    try {
-        const response = await fetch('/actualizar-anticipo-directo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                cargaId, 
-                tipo_anticipo: valorSeleccionado,
-                valor_anticipo: valorCalculado 
-            })
-        });
+            try {
+              const response = await fetch('/actualizar-anticipo-directo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  cargaId, 
+                  tipo_anticipo: valorSeleccionado,
+                  valor_anticipo: valorCalculado 
+                })
+              });
 
-        if (response.ok) {
-            // Refrescamos para ver el nuevo valor en la celda de "VALOR ANTICIPO"
-            location.reload();
-        }
-    } catch (error) {
-        alert("Error al actualizar el cálculo");
-    }
-}
-</script>
+              if (response.ok) {
+                location.reload();
+              }
+            } catch (error) {
+              alert("Error al actualizar el cálculo");
+            }
+          }
+
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.fila-carga').forEach(fila => {
@@ -211,6 +208,16 @@ app.get('/', async (req, res) => {
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
+app.post('/actualizar-anticipo-directo', async (req, res) => {
+  try {
+    const { cargaId, tipo_anticipo, valor_anticipo } = req.body;
+    await Finanza.upsert({ cargaId, tipo_anticipo, valor_anticipo });
+    res.sendStatus(200);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -220,20 +227,19 @@ app.get('/editar/:id', async (req, res) => {
         <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
           <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
           <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div class="campo">
-  <label>Tipo de Anticipo:</label>
-  <select name="tipo_anticipo" id="tipo_anticipo" class="input-estilizado" onchange="calcularAutomatico()">
-    <option value="">Seleccione una opción...</option>
-    <option value="Anticipo normal (70%)">Anticipo normal (70%)</option>
-    <option value="Anticipo parcial (65%)">Anticipo parcial (65%)</option>
-    <option value="Anticipo medio (50%)">Anticipo medio (50%)</option>
-    <option value="Sin anticipo (0)">Sin anticipo (0)</option>
-  </select>
-</div
+          <div>
+            <label>Tipo de Anticipo:</label>
+            <select name="tipo_anticipo" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+              <option value="">Seleccione una opción...</option>
+              <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>Anticipo normal (70%)</option>
+              <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>Anticipo parcial (65%)</option>
+              <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>Anticipo medio (50%)</option>
+              <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>Sin anticipo (0)</option>
+            </select>
+          </div>
           <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          
           <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
              <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (INGRESAR SI/NO)</p>
              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
@@ -247,14 +253,12 @@ app.get('/editar/:id', async (req, res) => {
                 <label>TIQ. DESCARGUE <input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
              </div>
           </div>
-
           <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
           <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
           <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-
           <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS CONTABLES</button>
         </form>
         <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
