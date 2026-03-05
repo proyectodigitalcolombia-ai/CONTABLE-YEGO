@@ -47,14 +47,19 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
+    // AJUSTE: Se usan comillas dobles para capturar V_FLETE y V_FACTURAR como columnas de LogisV20
+    const sql = `SELECT *, "V_FLETE" AS f_pagar_logis, "V_FACTURAR" AS f_facturar_logis FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
     const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
     let totalPendiente = 0;
     let filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
-      const fletePagar = Number(f.v_flete || 0);
+      
+      // CAMBIO: Convertimos los valores de LogisV20 a números enteros/decimales puros
+      const fletePagar = Number(c.f_pagar_logis || 0);
+      const fleteFacturar = Number(c.f_facturar_logis || 0);
+      
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
@@ -73,7 +78,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
           <td style="${tdStyle}">${c.muc || '---'}</td>
           <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${Number(f.v_facturar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">${f.tipo_anticipo || '---'}</td>
@@ -127,8 +132,8 @@ app.get('/', async (req, res) => {
                 <th style="${thStyle}">ID</th><th style="${thStyle}">FECHA REGISTRO</th><th style="${thStyle}">OFICINA</th>
                 <th style="${thStyle}">ORIGEN</th><th style="${thStyle}">DESTINO</th><th style="${thStyle}">CLIENTE</th>
                 <th style="${thStyle}">CONTENEDOR</th><th style="${thStyle}">PEDIDO</th><th style="${thStyle}">PLACA</th>
-                <th style="${thStyle}">MUC</th><th style="${thStyle}">VALOR FLETE A PAGAR</th>
-                <th style="${thStyle}">VALOR FLETE A FACTURAR</th><th style="${thStyle}">FECHA ACTUALIZACIÓN</th>
+                <th style="${thStyle}">MUC</th><th style="${thStyle}">VALOR FLETE A PAGAR (LOGIS)</th>
+                <th style="${thStyle}">VALOR FLETE A FACTURAR (LOGIS)</th><th style="${thStyle}">FECHA ACTUALIZACIÓN</th>
                 <th style="${thStyle}">ESTADO FINAL LOGIS</th>
                 <th style="${thStyle}">TIPO DE ANTICIPO</th><th style="${thStyle}">VALOR ANTICIPO</th>
                 <th style="${thStyle}">SOBRE ANTICIPO</th><th style="${thStyle}">ESTADO</th>
