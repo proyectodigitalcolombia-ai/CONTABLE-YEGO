@@ -45,6 +45,13 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
+// Función auxiliar para el cambio de estado visual (Chulo/X)
+const statusCheck = (val) => {
+  if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
+  if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
+  return val || '---';
+};
+
 app.get('/', async (req, res) => {
   try {
     const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
@@ -83,15 +90,15 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${f.ent_manifiesto || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_remesa || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_hoja_tiempos || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_docs_cliente || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_facturas || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tirilla_vacio || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tiq_cargue || 'NO'}</td>
-          <td style="${tdStyle}">${f.ent_tiq_descargue || 'NO'}</td>
-          <td style="${tdStyle}">${f.presenta_novedades || 'NO'}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_facturas || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.presenta_novedades || 'NO')}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
