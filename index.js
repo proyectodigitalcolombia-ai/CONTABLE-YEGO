@@ -1,5 +1,5 @@
 const express = require('express');
-const { Sequelize } = require('sequelize');
+const { Sequelize, DataTypes } = require('sequelize');
 const app = express();
 
 const db = new Sequelize(process.env.DATABASE_URL, {
@@ -9,26 +9,38 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   logging: false
 });
 
+// Forzamos la creación de una tabla nueva para ver si tenemos permisos
+const CargaLocal = db.define('CargaLocal', {
+  placa: DataTypes.STRING,
+  flete: DataTypes.INTEGER
+}, { tableName: 'yego_test_table' });
+
 app.get('/', async (req, res) => {
   try {
-    // Esta consulta nos dirá los nombres reales de todas tus tablas
-    const [results] = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-    const nombres = results.map(t => t.table_name).join(' | ');
-    
+    await db.authenticate();
+    // Creamos la tabla y un viaje de prueba
+    await db.sync({ force: false }); 
+    const existe = await CargaLocal.findOne();
+    if (!existe) {
+        await CargaLocal.create({ placa: 'TEST-123', flete: 500000 });
+    }
+
+    const viajes = await CargaLocal.findAll();
+    let rows = viajes.map(v => `<li>ID: ${v.id} - Placa: ${v.placa} - Flete: $${v.flete}</li>`).join('');
+
     res.send(`
       <body style="background:#0f172a; color:white; font-family:sans-serif; padding:40px;">
-        <h1>Escáner de Base de Datos YEGO</h1>
-        <p>Tablas encontradas en tu base de datos:</p>
-        <div style="background:#1e293b; padding:20px; border-radius:10px; font-size:20px; color:#34d399; border:1px solid #3b82f6;">
-          ${nombres || "No se encontraron tablas públicas"}
-        </div>
-        <p style="margin-top:20px; color:#94a3b8;">Dime qué nombres aparecen arriba para configurar el sistema correctamente.</p>
+        <h1 style="color:#34d399;">✅ Conexión Exitosa</h1>
+        <p>Si ves el viaje de prueba abajo, significa que YEGO está funcionando, pero tu otra plataforma NO está guardando los datos en este mismo enlace (DATABASE_URL).</p>
+        <ul style="font-size:20px;">${rows}</ul>
+        <hr>
+        <p style="color:#94a3b8;">DATABASE_URL actual: <br> <small>${process.env.DATABASE_URL.substring(0, 30)}...</small></p>
       </body>
     `);
   } catch (err) {
-    res.send("Error al conectar: " + err.message);
+    res.send(`<h1 style="color:red;">❌ Error de Conexión</h1><p>${err.message}</p>`);
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Escáner Online"));
+app.listen(PORT, () => console.log("Prueba de fuego online"));
