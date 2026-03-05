@@ -163,7 +163,17 @@ app.get('/', async (req, res) => {
               ${f.presenta_novedades === 'SI' ? (f.obs_novedad || '') : '---'}
             </div>
           </td>
-          <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
+          <td id="td-descuento-${c.id}" style="${tdStyle}">
+  <input 
+    type="text" 
+    id="input-desc-${c.id}"
+    value="$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}" 
+    style="background: #0f172a; color: #ef4444; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
+    onfocus="this.type='number'; this.value='${f.valor_descuento || 0}'"
+    onblur="formatToMoneyDesc(${c.id}, this)"
+  >
+  <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
+</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
           <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
           <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
@@ -348,6 +358,35 @@ app.get('/', async (req, res) => {
   
   // Ejecuta tu función de actualización existente
   await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
+}
+        async function gestionarNovedad(cargaId, valor) {
+  const divObs = document.getElementById("obs-" + cargaId);
+  const inputDesc = document.getElementById("input-desc-" + cargaId);
+  const spanDesc = document.getElementById("span-desc-" + cargaId);
+
+  if(valor === "SI") {
+    // Habilitar Observación
+    divObs.contentEditable = "true";
+    divObs.innerText = "";
+    divObs.style.border = "1px solid #3b82f6";
+    
+    // Habilitar Descuento
+    inputDesc.style.display = "inline-block";
+    spanDesc.style.display = "none";
+  } else {
+    // Deshabilitar Observación
+    divObs.contentEditable = "false";
+    divObs.innerText = "---";
+    divObs.style.border = "none";
+    
+    // Deshabilitar Descuento y resetear a 0
+    inputDesc.style.display = "none";
+    spanDesc.style.display = "inline-block";
+    inputDesc.value = "$0";
+    await actualizarEntrega(cargaId, 'valor_descuento', 0);
+    await actualizarEntrega(cargaId, 'obs_novedad', '');
+  }
+  await actualizarEntrega(cargaId, 'presenta_novedades', valor);
 }
         </script>
       </body>`);
