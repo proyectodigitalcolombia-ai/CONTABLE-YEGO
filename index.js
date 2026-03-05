@@ -98,7 +98,16 @@ app.get('/', async (req, res) => {
           </td>
           <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_ant || '---'}</td>
+          <td style="${tdStyle}">
+    <select 
+        onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
+        style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;">
+        
+        <option value="PENDIENTE" ${estadoContable === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+        <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
+        
+    </select>
+</td>
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
