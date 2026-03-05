@@ -213,45 +213,28 @@ app.get('/', async (req, res) => {
 }
 
           async function actualizarEstadoFinanciero(id, nuevoEstado) {
-    let fechaActualizada = null;
-
-    if (nuevoEstado === "TRANSFERIDO") {
-        const ahora = new Date();
-        // Formato: 05/03/2026 14:30 (Día/Mes/Año Hora:Minuto)
-        fechaActualizada = ahora.toLocaleString('es-CO', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit',
-            hour12: false 
-        });
-    }
-
-    try {
-        const response = await fetch('/actualizar-estado-financiero', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                id: id, 
-                estado: nuevoEstado, 
-                fechaPago: fechaActualizada // Enviamos la fecha con hora al servidor
-            })
-        });
-
-        if (response.ok) {
-            // Buscamos la celda específica por su ID
-            const celdaFecha = document.getElementById(`fecha-pago-${id}`);
-            if (celdaFecha) {
-                celdaFecha.innerText = fechaActualizada || '---';
-                celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
+            let fechaActualizada = null;
+            if (nuevoEstado === "TRANSFERIDO") {
+                const ahora = new Date();
+                fechaActualizada = ahora.toISOString().split('T')[0];
             }
-        }
-    } catch (error) {
-        console.error("Error al actualizar estado:", error);
-    }
-}
+
+            try {
+                const response = await fetch('/actualizar-estado-financiero', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, estado: nuevoEstado, fechaPago: fechaActualizada })
+                });
+
+                if (response.ok) {
+                    const celdaFecha = document.getElementById("fecha-pago-" + id);
+                    if (celdaFecha) {
+                        celdaFecha.innerText = fechaActualizada || '---';
+                        celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
+                    }
+                }
+            } catch (error) { console.error(error); }
+          }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
