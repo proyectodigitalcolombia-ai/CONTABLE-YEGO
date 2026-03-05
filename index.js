@@ -420,7 +420,6 @@ if (origen.includes("BUENAVENTURA")) {
     tarifaIca = 0.007;
 } else if (origen.includes("YUMBO") || origen.includes("FUNZA")) {
     tarifaIca = 0.005;
-}
 
 const reteica = Math.round(flete * tarifaIca);}
 });
