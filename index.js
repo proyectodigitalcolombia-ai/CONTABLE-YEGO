@@ -111,6 +111,8 @@ app.get('/', async (req, res) => {
           </td>
           <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
+          <option value="VIRTUAL" ${tipocumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
+                <option value="FÍSICO" ${tipocumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
