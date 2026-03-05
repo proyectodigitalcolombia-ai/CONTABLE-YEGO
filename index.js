@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   logging: false
 });
 
-// --- MODELO 1: CARGAS (Solo con lo que hay en tu DB real) ---
+// --- MODELO 1: CARGAS (Solo columnas confirmadas en /debug) ---
 const Carga = db.define('Carga', {
   placa: { type: DataTypes.STRING, field: 'placa' },
   cont: { type: DataTypes.STRING, field: 'cont' },
@@ -22,7 +22,7 @@ const Carga = db.define('Carga', {
   timestamps: true 
 });
 
-// --- MODELO 2: YEGO FINANZAS (Nuestra tabla de cobros) ---
+// --- MODELO 2: YEGO FINANZAS ---
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -53,7 +53,6 @@ app.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    // Asegurar que cada carga tenga su registro financiero
     for (let d of despachos) {
       if (!d.Finanza) await Finanza.create({ cargaId: d.id });
     }
@@ -75,35 +74,49 @@ app.get('/', async (req, res) => {
     }).join('');
 
     res.send(`<html><head><title>YEGO FINANZAS</title>${css}</head><body>
-      <div style="display:flex; justify-content:space-between; align-items:center">
-        <h1 style="color:#3b82f6; margin:0">YEGO 💰 <small style="color:#94a3b8; font-size:14px">Finanzas</small></h1>
-      </div>
-      <br>
-      <div class="card"><h3>Total Facturado</h3><p style="font-size:24px; color:#34d399; margin:5px 0">$ ${totalCaja.toLocaleString()}</p></div>
-      <div class="card" style="border-top-color:#8b5cf6"><h3>Viajes Activos</h3><p style="font-size:24px; color:#8b5cf6; margin:5px 0">${despachos.length}</p></div>
-      
+      <h1 style="color:#3b82f6">YEGO 💰 <small style="color:#94a3b8; font-size:14px">Finanzas</small></h1>
+      <div class="card"><h3>Total Facturado</h3><p style="font-size:24px; color:#34d399">$ ${totalCaja.toLocaleString()}</p></div>
       <table>
-        <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>ACTUALIZACIÓN</th><th>VALOR FLETE</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
+        <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>FECHA</th><th>FLETE</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </body></html>`);
-  } catch (err) { res.send(`<h2 style="color:red">Error</h2><p>${err.message}</p>`); }
+  } catch (err) { res.send(err.message); }
 });
 
 // --- RUTA EDITAR ---
 app.get('/editar/:id', async (req, res) => {
-  const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
-  res.send(`<html><head>${css}</head><body>
-    <div style="max-width:400px;margin:40px auto;background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6;box-shadow: 0 10px 25px rgba(0,0,0,0.5)">
-      <h2 style="color:#3b82f6;margin-top:0">Liquidar Placa: ${f.Carga.placa}</h2>
-      <p style="color:#94a3b8">Contenedor: ${f.Carga.cont || 'No registrado'}</p>
-      <hr style="border:0;border-top:1px solid #334155;margin:20px 0">
-      <form action="/guardar/${f.cargaId}" method="POST">
-        <label style="font-size:12px; color:#94a3b8">VALOR TOTAL FLETE</label><br>
-        <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:8px 0 20px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;font-weight:bold">
-        
-        <label style="font-size:12px; color:#94a3b8">ANTICIPO ENTREGADO</label><br>
-        <input type="number" name="v_anticipo" value="${f.v_anticipo}" step="0.01" style="width:100%;padding:12px;margin:8px 0 20px 0;background:#0f172a;color:#fbbf24;border:1px solid #334155;border-radius:6px;font-size:18px">
-        
-        <label style="font-size:12px; color:#94a3b8">ESTADO DE PAGO</label><br>
-        <select name="est_pago
+  try {
+    const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
+    res.send(`<html><head>${css}</head><body>
+      <div style="max-width:400px;margin:40px auto;background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
+        <h2 style="color:#3b82f6">Liquidar Placa: ${f.Carga.placa}</h2>
+        <form action="/guardar/${f.cargaId}" method="POST">
+          <label style="color:#94a3b8">VALOR FLETE</label><br>
+          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px">
+          <br><label style="color:#94a3b8">ANTICIPO</label><br>
+          <input type="number" name="v_anticipo" value="${f.v_anticipo}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#fbbf24;border:1px solid #334155;border-radius:6px">
+          <br><label style="color:#94a3b8">ESTADO</label><br>
+          <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155">
+            <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+            <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+          </select>
+          <button type="submit" class="btn" style="width:100%;padding:15px;cursor:pointer">GUARDAR</button>
+        </form>
+      </div></body></html>`);
+  } catch (e) { res.send(e.message); }
+});
+
+// --- RUTA GUARDAR ---
+app.post('/guardar/:id', async (req, res) => {
+  const { v_flete, v_anticipo, est_pago } = req.body;
+  const v_saldo = parseFloat(v_flete) - parseFloat(v_anticipo);
+  await Finanza.update({ v_flete, v_anticipo, v_saldo, est_pago }, { where: { cargaId: req.params.id } });
+  res.redirect('/');
+});
+
+// --- INICIO DEL SERVIDOR ---
+const PORT = process.env.PORT || 3000;
+db.sync().then(() => {
+  app.listen(PORT, () => console.log("YEGO Online"));
+}).catch(err => console.log("Error Sync DB: " + err));
