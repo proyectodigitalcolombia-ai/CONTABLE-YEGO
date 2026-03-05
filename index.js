@@ -95,9 +95,9 @@ app.get('/', async (req, res) => {
               <option value="Anticipo parcial (60%)" ${f.tipo_anticipo === 'Anticipo parcial (60%)' ? 'selected' : ''}>60%</option>
               <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>65%</option>
               <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>70%</option>
-                            <option value="Anticipo parcial (75%)" ${f.tipo_anticipo === 'Anticipo parcial (75%)' ? 'selected' : ''}>75%</option>
-                            <option value="Anticipo parcial (100%)" ${f.tipo_anticipo === 'Anticipo parcial (100%)' ? 'selected' : ''}>100%</option>
-                          </select>
+              <option value="Anticipo parcial (75%)" ${f.tipo_anticipo === 'Anticipo parcial (75%)' ? 'selected' : ''}>75%</option>
+              <option value="Anticipo parcial (100%)" ${f.tipo_anticipo === 'Anticipo parcial (100%)' ? 'selected' : ''}>100%</option>
+            </select>
           </td>
           <td id="valor-ant-${c.id}" style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
@@ -109,18 +109,14 @@ app.get('/', async (req, res) => {
                 <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
             </select>
           </td>
+          <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">
-  <td id="fecha-pago-${c.id}" style="${tdStyle}">
-  ${f.fecha_pago_ant || '---'}
-</td>
-
-<td style="${tdStyle}">
-  <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
-    <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
-    <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
-    <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
-  </select>
-</td>
+            <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+              <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
+              <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
+              <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
+            </select>
+          </td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
@@ -191,43 +187,38 @@ app.get('/', async (req, res) => {
         
         <script>
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-    // 1. Calcular el porcentaje basado en el texto del <option>
-    let porcentaje = 0;
-    if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-    else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
-    else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
-    else if (valorSeleccionado.includes("60%")) porcentaje = 0.60;
-    else if (valorSeleccionado.includes("75%")) porcentaje = 0.75;
-    else if (valorSeleccionado.includes("100%")) porcentaje = 1;
-    
+            let porcentaje = 0;
+            if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
+            else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
+            else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+            else if (valorSeleccionado.includes("60%")) porcentaje = 0.60;
+            else if (valorSeleccionado.includes("75%")) porcentaje = 0.75;
+            else if (valorSeleccionado.includes("100%")) porcentaje = 1;
 
-    const valorCalculado = Math.round(flete * porcentaje);
-    
-    try {
-        // 2. Enviar al servidor para que se guarde en la DB
-        const response = await fetch('/actualizar-anticipo-directo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                cargaId, 
-                tipo_anticipo: valorSeleccionado, 
-                valor_anticipo: valorCalculado 
-            })
-        });
+            const valorCalculado = Math.round(flete * porcentaje);
+            
+            try {
+                const response = await fetch('/actualizar-anticipo-directo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        cargaId, 
+                        tipo_anticipo: valorSeleccionado, 
+                        valor_anticipo: valorCalculado 
+                    })
+                });
 
-        // 3. Si el servidor respondió OK, actualizar la celda de la tabla inmediatamente
-        if (response.ok) {
-            const celdaValor = document.getElementById("valor-ant-" + cargaId);
-            if (celdaValor) {
-                celdaValor.innerText = "$" + valorCalculado.toLocaleString('es-CO');
-                // Opcional: un pequeño destello verde para indicar éxito
-                celdaValor.style.color = "#10b981"; 
+                if (response.ok) {
+                    const celdaValor = document.getElementById("valor-ant-" + cargaId);
+                    if (celdaValor) {
+                        celdaValor.innerText = "$" + valorCalculado.toLocaleString('es-CO');
+                        celdaValor.style.color = "#10b981"; 
+                    }
+                }
+            } catch (error) { 
+                console.error("Error al actualizar anticipo:", error); 
             }
-        }
-    } catch (error) { 
-        console.error("Error al actualizar anticipo:", error); 
-    }
-}
+          }
 
           async function actualizarEstadoFinanciero(id, nuevoEstado) {
             let fechaActualizada = null;
@@ -252,16 +243,24 @@ app.get('/', async (req, res) => {
                 }
             } catch (error) { console.error(error); }
           }
+
+          async function actualizarTipoCumplido(cargaId, nuevoTipo) {
+            try {
+              await fetch('/actualizar-tipo-cumplido', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cargaId, tipo_cumplido: nuevoTipo })
+              });
+            } catch (e) { console.error("Error al guardar tipo cumplido", e); }
+          }
+
+          document.getElementById('buscador').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.fila-carga').forEach(fila => {
+              fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
+            });
+          });
         </script>
-        async function actualizarTipoCumplido(cargaId, nuevoTipo) {
-  try {
-    await fetch('/actualizar-tipo-cumplido', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cargaId, tipo_cumplido: nuevoTipo })
-    });
-  } catch (e) { console.error("Error al guardar tipo cumplido", e); }
-}
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
@@ -286,6 +285,14 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
   } catch (error) {
     res.status(500).send(error.message);
   }
+});
+
+app.post('/actualizar-tipo-cumplido', async (req, res) => {
+  try {
+    const { cargaId, tipo_cumplido } = req.body;
+    await Finanza.upsert({ cargaId, tipo_cumplido });
+    res.sendStatus(200);
+  } catch (error) { res.status(500).send(error.message); }
 });
 
 app.get('/editar/:id', async (req, res) => {
