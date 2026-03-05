@@ -12,17 +12,22 @@ const db = new Sequelize(process.env.DATABASE_URL, {
 });
 
 // --- MODELO CON NOMBRES DE COLUMNA EXACTOS ---
-// PostgreSQL es sensible a mayúsculas y espacios si se crearon con comillas
 const Carga = db.define('Carga', {
-  id: { type: DataTypes.INTEGER, primaryKey: true, field: 'ID' },
+  id: { 
+    type: DataTypes.INTEGER, 
+    primaryKey: true, 
+    field: 'ID' // Solución definitiva al error de image_a08e7b.png
+  },
   placa: { type: DataTypes.STRING, field: 'PLACA' },
   cont: { type: DataTypes.STRING, field: 'CONTENEDOR' },
   empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, 
   comercial: { type: DataTypes.STRING, field: 'COMERCIAL' },
   puerto: { type: DataTypes.STRING, field: 'PUERTO' },
-  // Si la columna tiene espacio en la DB, se pone exactamente así:
-  fecha: { type: DataTypes.STRING, field: 'FECHA REGISTRO' } 
-}, { tableName: 'Cargas', timestamps: false });
+  fecha_reg: { type: DataTypes.STRING, field: 'FECHA REGISTRO' }
+}, { 
+  tableName: 'Cargas', 
+  timestamps: false 
+});
 
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
@@ -42,7 +47,7 @@ const css = `<style>
   .btn{background:#2563eb;color:white;padding:6px 12px;text-decoration:none;border-radius:6px;font-size:11px;font-weight:bold;display:inline-block;}
   .card{background:#1e293b;padding:15px 25px;border-radius:12px;border-top:4px solid #3b82f6;display:inline-block;}
   .status{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold;}
-  .badge{background:#0f172a; padding:4px 8px; border-radius:6px; color:#3b82f6; font-weight:bold; border:1px solid #334155;}
+  .badge-client{color:#3b82f6; font-weight:bold; background:#0f172a; padding:4px 8px; border-radius:6px;}
 </style>`;
 
 app.get('/', async (req, res) => {
@@ -58,10 +63,10 @@ app.get('/', async (req, res) => {
       const v = parseFloat(d.Finanza?.v_flete || 0);
       total += v;
       return `<tr>
-        <td><span style="color:#64748b">#${d.id}</span></td>
+        <td>#${d.id}</td>
         <td><b style="color:#fff; font-size:14px">${d.placa || '--'}</b></td>
         <td>${d.cont || '--'}</td>
-        <td><span class="badge">${d.empresa || 'N/A'}</span></td>
+        <td><span class="badge-client">${d.empresa || 'N/A'}</span></td>
         <td>${d.comercial || '--'}</td>
         <td>${d.puerto || '--'}</td>
         <td style="color:#34d399; font-weight:bold; font-size:14px">$ ${v.toLocaleString()}</td>
@@ -71,35 +76,31 @@ app.get('/', async (req, res) => {
     }).join('');
 
     res.send(`<html><head><title>YEGO MASTER</title>${css}</head><body><div class="container">
-      <h1 style="color:#3b82f6">YEGO 💰 Finanzas</h1>
+      <h1 style="color:#3b82f6">YEGO 💰 Finanzas <small style="color:#64748b; font-size:12px">| Control Total</small></h1>
       <div class="card"><h3>Cartera Total</h3><p style="font-size:24px; color:#34d399; margin:0;">$ ${total.toLocaleString()}</p></div>
       <table>
-        <thead><tr>
-          <th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>EMPRESA</th><th>COMERCIAL</th><th>PUERTO</th><th>VALOR FLETE</th><th>PAGO</th><th>ACCIÓN</th>
-        </tr></thead>
+        <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>EMPRESA</th><th>COMERCIAL</th><th>PUERTO</th><th>VALOR FLETE</th><th>PAGO</th><th>ACCIÓN</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div></body></html>`);
-  } catch (err) { 
-    res.send(`<h2>Error de Datos</h2><p>${err.message}</p>`); 
-  }
+  } catch (err) { res.send(`<h2>Error de Sincronización</h2><p>${err.message}</p>`); }
 });
 
-// --- LAS RUTAS DE EDITAR Y GUARDAR SE MANTIENEN IGUAL ---
+// --- RUTA EDITAR ---
 app.get('/editar/:id', async (req, res) => {
     const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
     res.send(`<html><head>${css}</head><body><div class="container" style="max-width:400px; margin-top:50px;">
       <div style="background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
         <h2 style="color:#3b82f6">Liquidar #${f.cargaId}</h2>
-        <p style="color:#94a3b8">Placa: ${f.Carga.placa} | Cliente: ${f.Carga.empresa}</p>
+        <p style="color:#94a3b8">Empresa: ${f.Carga.empresa}</p>
         <form action="/guardar/${f.cargaId}" method="POST">
           <label style="font-size:11px; color:#94a3b8">VALOR FLETE</label><br>
-          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;">
+          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;">
           <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155;border-radius:6px;">
             <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
             <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
           </select>
-          <button type="submit" class="btn" style="width:100%;padding:15px; margin-top:10px;">ACTUALIZAR FLETE</button>
+          <button type="submit" class="btn" style="width:100%;padding:15px; margin-top:10px;">GUARDAR CAMBIOS</button>
         </form>
       </div></div></body></html>`);
 });
