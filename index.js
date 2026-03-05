@@ -49,6 +49,7 @@ const Finanza = db.define('Finanza', {
 const statusCheck = (val) => {
   if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
   if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
+  if (val === 'NO APLICA') return '<span style="color: #94a3b8;">⚠️ N/A</span>';
   return val || '---';
 };
 
@@ -68,6 +69,15 @@ app.get('/', async (req, res) => {
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
+      const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
+
+      const renderSelectEntrega = (campo, valorActual) => `
+        <select onchange="actualizarEntrega(${c.id}, '${campo}', this.value)" style="${selStyle}">
+          <option value="SI" ${valorActual === 'SI' ? 'selected' : ''}>SI</option>
+          <option value="NO" ${valorActual === 'NO' ? 'selected' : ''}>NO</option>
+          <option value="NO APLICA" ${valorActual === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+        </select>
+      `;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
@@ -88,7 +98,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">
             <select 
               onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
-              style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+              style="${selStyle}">
               <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
               <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
               <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>50%</option>
@@ -104,32 +114,32 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">
             <select 
                 onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
-                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;">
+                style="${selStyle} width: 100%;">
                 <option value="PENDIENTE" ${estadoContable === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
                 <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
             </select>
           </td>
           <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
 
-<td style="${tdStyle}">
-  <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
-    <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
-    <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
-    <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
-  </select>
-</td>
+          <td style="${tdStyle}">
+            <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="${selStyle}">
+              <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
+              <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
+              <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
+            </select>
+          </td>
 
-<td id="fecha-virtual-${c.id}" style="${tdStyle}">
-  ${f.fecha_cump_virtual || '---'}
-</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_facturas || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue || 'NO')}</td>
+          <td id="fecha-virtual-${c.id}" style="${tdStyle}">
+            ${f.fecha_cump_virtual || '---'}
+          </td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_manifiesto', f.ent_manifiesto)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_remesa', f.ent_remesa)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_hoja_tiempos', f.ent_hoja_tiempos)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_docs_cliente', f.ent_docs_cliente)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_facturas', f.ent_facturas)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_tirilla_vacio', f.ent_tirilla_vacio)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_cargue', f.ent_tiq_cargue)}</td>
+          <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_descargue', f.ent_tiq_descargue)}</td>
           <td style="${tdStyle}">${statusCheck(f.presenta_novedades || 'NO')}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
@@ -190,6 +200,16 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
+          async function actualizarEntrega(cargaId, campo, valor) {
+            try {
+              await fetch('/actualizar-entrega', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cargaId, campo, valor })
+              });
+            } catch (e) { console.error("Error al actualizar entrega", e); }
+          }
+
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
             let porcentaje = 0;
             if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
@@ -248,55 +268,52 @@ app.get('/', async (req, res) => {
             } catch (error) { console.error(error); }
           }
 
-          async function actualizarTipoCumplido(cargaId, nuevoTipo) {
-            try {
-              await fetch('/actualizar-tipo-cumplido', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cargaId, tipo_cumplido: nuevoTipo })
-              });
-            } catch (e) { console.error("Error al guardar tipo cumplido", e); }
-          }
-
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.fila-carga').forEach(fila => {
               fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
             });
           });
+
           async function actualizarTipoCumplido(cargaId, nuevoTipo) {
-  let fechaActualizada = null;
-  
-  // Si el usuario selecciona cualquier opción (VIRTUAL o FÍSICO), se pone la fecha de hoy
-  if (nuevoTipo !== "") {
-    fechaActualizada = new Date().toISOString().split('T')[0];
-  }
+            let fechaActualizada = null;
+            if (nuevoTipo !== "") {
+              fechaActualizada = new Date().toISOString().split('T')[0];
+            }
 
-  try {
-    const response = await fetch('/actualizar-tipo-cumplido', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        cargaId, 
-        tipo_cumplido: nuevoTipo, 
-        fecha_virtual: fechaActualizada 
-      })
-    });
+            try {
+              const response = await fetch('/actualizar-tipo-cumplido', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  cargaId, 
+                  tipo_cumplido: nuevoTipo, 
+                  fecha_virtual: fechaActualizada 
+                })
+              });
 
-    if (response.ok) {
-      const celdaFecha = document.getElementById("fecha-virtual-" + cargaId);
-      if (celdaFecha) {
-        celdaFecha.innerText = fechaActualizada || '---';
-        celdaFecha.style.color = "#10b981"; // Color verde de éxito
-      }
-    }
-  } catch (e) { 
-    console.error("Error al guardar tipo cumplido", e); 
-  }
-}
+              if (response.ok) {
+                const celdaFecha = document.getElementById("fecha-virtual-" + cargaId);
+                if (celdaFecha) {
+                  celdaFecha.innerText = fechaActualizada || '---';
+                  celdaFecha.style.color = "#10b981";
+                }
+              }
+            } catch (e) { 
+              console.error("Error al guardar tipo cumplido", e); 
+            }
+          }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
+});
+
+app.post('/actualizar-entrega', async (req, res) => {
+  try {
+    const { cargaId, campo, valor } = req.body;
+    await Finanza.upsert({ cargaId, [campo]: valor });
+    res.sendStatus(200);
+  } catch (error) { res.status(500).send(error.message); }
 });
 
 app.post('/actualizar-estado-financiero', async (req, res) => {
@@ -327,7 +344,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
     await Finanza.upsert({ 
       cargaId, 
       tipo_cumplido, 
-      fecha_cump_virtual: fecha_virtual // Guardamos la fecha recibida
+      fecha_cump_virtual: fecha_virtual 
     });
     res.sendStatus(200);
   } catch (error) { 
@@ -358,16 +375,64 @@ app.get('/editar/:id', async (req, res) => {
           <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
-             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (INGRESAR SI/NO)</p>
+             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS</p>
              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
-                <label>MANIFIESTO <input type="text" name="ent_manifiesto" value="${f.ent_manifiesto}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>REMESA <input type="text" name="ent_remesa" value="${f.ent_remesa}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>HOJA TIEMPOS <input type="text" name="ent_hoja_tiempos" value="${f.ent_hoja_tiempos}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>DOCS CLIENTE <input type="text" name="ent_docs_cliente" value="${f.ent_docs_cliente}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>FACTURAS <input type="text" name="ent_facturas" value="${f.ent_facturas}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIRILLA VACÍO <input type="text" name="ent_tirilla_vacio" value="${f.ent_tirilla_vacio}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. CARGUE <input type="text" name="ent_tiq_cargue" value="${f.ent_tiq_cargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. DESCARGUE <input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>MANIFIESTO 
+                  <select name="ent_manifiesto" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_manifiesto === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_manifiesto === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_manifiesto === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>REMESA 
+                  <select name="ent_remesa" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_remesa === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_remesa === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_remesa === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>HOJA TIEMPOS 
+                  <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_hoja_tiempos === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>DOCS CLIENTE 
+                  <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>FACTURAS 
+                  <select name="ent_facturas" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_facturas === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_facturas === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_facturas === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIRILLA VACÍO 
+                  <select name="ent_tirilla_vacio" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tirilla_vacio === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tirilla_vacio === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tirilla_vacio === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIQ. CARGUE 
+                  <select name="ent_tiq_cargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tiq_cargue === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tiq_cargue === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tiq_cargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIQ. DESCARGUE 
+                  <select name="ent_tiq_descargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tiq_descargue === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tiq_descargue === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tiq_descargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
              </div>
           </div>
           <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
