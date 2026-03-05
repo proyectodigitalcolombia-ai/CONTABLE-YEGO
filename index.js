@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO ORIGINAL - SIN ALTERAR LA ESTRUCTURA DE LA BASE
+// MODELO YEGO_FINANZAS
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -54,11 +54,24 @@ const statusCheck = (val) => {
 
 app.get('/', async (req, res) => {
   try {
-    // EL CAMBIO MAESTRO: Forzamos la unión por texto y recortamos espacios (TRIM)
+    // CAMBIO CLAVE: Alias explícitos para forzar la lectura de columnas
+    // Aquí forzamos a que "f_doc" sea reconocida y los valores financieros también
     const sql = `
-      SELECT c.*, f.*, c.id AS main_id 
+      SELECT 
+        c.id AS cid, 
+        c."f_doc" AS fecha_reg, 
+        c.oficina, c.orig, c.dest, c.cli, c.cont, c.ped, c.placa, c.muc, c.f_act, c.est_real,
+        f.v_flete AS flete_p, 
+        f.v_facturar AS flete_f, 
+        f.est_pago, f.tipo_anticipo, f.valor_anticipo, f.sobre_anticipo, f.estado_ant,
+        f.fecha_pago_ant, f.tipo_cumplido, f.fecha_cump_virtual, f.ent_manifiesto,
+        f.ent_remesa, f.ent_hoja_tiempos, f.ent_docs_cliente, f.ent_facturas,
+        f.ent_tirilla_vacio, f.ent_tiq_cargue, f.ent_tiq_descargue, f.presenta_novedades,
+        f.obs_novedad, f.valor_descuento, f.fecha_cump_docs, f.fecha_legalizacion,
+        f.retefuente, f.reteica, f.saldo_a_pagar AS saldo_p, f.estado_final,
+        f.dias_sin_pagar, f.dias_sin_cumplir
       FROM "Cargas" c
-      LEFT JOIN "Yego_Finanzas" f ON TRIM(CAST(c.id AS TEXT)) = TRIM(CAST(f."cargaId" AS TEXT))
+      LEFT JOIN "Yego_Finanzas" f ON CAST(c.id AS TEXT) = CAST(f."cargaId" AS TEXT)
       WHERE c.placa IS NOT NULL AND c.placa != '' 
       ORDER BY c.id DESC LIMIT 150`;
     
@@ -66,17 +79,19 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      // Limpieza de nulos para cálculos precisos
-      const fletePagar = parseFloat(c.v_flete || 0);
-      const fleteFacturar = parseFloat(c.v_facturar || 0);
+      // Usamos los nuevos alias definidos en el SQL
+      const fletePagar = parseFloat(c.flete_p || 0);
+      const fleteFacturar = parseFloat(c.flete_f || 0);
+      const saldoFinal = parseFloat(c.saldo_p || 0);
+      
       if((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.main_id}</td>
-          <td style="${tdStyle}">${c.f_doc || '---'}</td>
+          <td style="${tdStyle} color: #94a3b8;">#${c.cid}</td>
+          <td style="${tdStyle}">${c.fecha_reg || '---'}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
           <td style="${tdStyle}">${c.dest || '---'}</td>
@@ -111,12 +126,12 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
           <td style="${tdStyle}">$${parseFloat(c.retefuente || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${parseFloat(c.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${parseFloat(c.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${saldoFinal.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${c.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${c.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.main_id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <a href="/editar/${c.cid}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
@@ -179,55 +194,25 @@ app.get('/editar/:id', async (req, res) => {
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
       <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${req.params.id}</h2>
+        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN CARGA #${req.params.id}</h2>
         <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
           <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
           <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div><label>TIPO ANTICIPO</label><input type="text" name="tipo_anticipo" value="${f.tipo_anticipo||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          
-          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
-             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (INGRESAR SI/NO)</p>
-             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
-                <label>MANIFIESTO <input type="text" name="ent_manifiesto" value="${f.ent_manifiesto}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>REMESA <input type="text" name="ent_remesa" value="${f.ent_remesa}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>HOJA TIEMPOS <input type="text" name="ent_hoja_tiempos" value="${f.ent_hoja_tiempos}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>DOCS CLIENTE <input type="text" name="ent_docs_cliente" value="${f.ent_docs_cliente}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>FACTURAS <input type="text" name="ent_facturas" value="${f.ent_facturas}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIRILLA VACÍO <input type="text" name="ent_tirilla_vacio" value="${f.ent_tirilla_vacio}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. CARGUE <input type="text" name="ent_tiq_cargue" value="${f.ent_tiq_cargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-                <label>TIQ. DESCARGUE <input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
-             </div>
-          </div>
-
-          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
-          <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS CONTABLES</button>
+          <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981;"></div>
+          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">ACTUALIZAR DATOS</button>
         </form>
-        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
+        <p style="text-align:center;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver</a></p>
       </div>
     </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
   try {
-    // Usamos cargaId explícitamente para asegurar la relación
-    await Finanza.upsert({
-      cargaId: req.params.id,
-      ...req.body
-    });
+    await Finanza.upsert({ cargaId: req.params.id, ...req.body });
     res.redirect('/');
-  } catch (error) {
-    res.status(500).send("Error al guardar: " + error.message);
-  }
+  } catch (error) { res.status(500).send("Error: " + error.message); }
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 SISTEMA YEGO ACTIVO')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO SISTEMA CON ALIAS')));
