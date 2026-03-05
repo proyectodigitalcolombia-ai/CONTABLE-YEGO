@@ -70,16 +70,17 @@ app.post('/api/update-cell', async (req, res) => {
 // --- VISTA PRINCIPAL GRID ---
 app.get('/', async (req, res) => {
   try {
-    const cargas = await db.query(`SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`, { type: QueryTypes.SELECT });
+    // CORRECCIÓN: Usamos comillas dobles para que Postgres reconozca los nombres exactos de LogisV20
+    const cargas = await db.query(`SELECT *, "V_FLETE" AS f_pagar, "V_FACTURAR" AS f_facturar FROM "Cargas" WHERE "PLACA" IS NOT NULL AND "PLACA" != '' ORDER BY id DESC LIMIT 150`, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
     let totalPendiente = 0;
 
     const filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
       
-      // CORRECCIÓN: Acceso explícito a las columnas de la tabla Cargas
-      const fletePagarLogis = Number(c.v_flete || c.V_FLETE || 0);
-      const fleteFacturarLogis = Number(c.v_facturar || c.V_FACTURAR || 0);
+      // CORRECCIÓN: Acceso a los alias definidos en la consulta SQL y conversión a número
+      const fletePagarLogis = Number(c.f_pagar || 0);
+      const fleteFacturarLogis = Number(c.f_facturar || 0);
       
       if((f.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagarLogis;
 
@@ -92,23 +93,23 @@ app.get('/', async (req, res) => {
         </td>`;
 
       return `
-        <tr class="fila" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
+        <tr class="fila" data-placa="${(c.PLACA || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
           <td style="${tdBase} color: #94a3b8;">#${c.id}</td>
-          <td style="${tdBase}">${c.f_doc || ''}</td>
-          <td style="${tdBase}">${c.oficina || ''}</td>
-          <td style="${tdBase}">${c.orig || ''}</td>
-          <td style="${tdBase}">${c.dest || ''}</td>
-          <td style="${tdBase}">${c.cli || ''}</td>
-          <td style="${tdBase}">${c.cont || ''}</td>
-          <td style="${tdBase}">${c.ped || ''}</td>
-          <td style="${tdBase} font-weight: bold; color: #60a5fa;">${c.placa}</td>
-          <td style="${tdBase}">${c.muc || ''}</td>
+          <td style="${tdBase}">${c.F_DOC || ''}</td>
+          <td style="${tdBase}">${c.OFICINA || ''}</td>
+          <td style="${tdBase}">${c.ORIG || ''}</td>
+          <td style="${tdBase}">${c.DEST || ''}</td>
+          <td style="${tdBase}">${c.CLI || ''}</td>
+          <td style="${tdBase}">${c.CONT || ''}</td>
+          <td style="${tdBase}">${c.PED || ''}</td>
+          <td style="${tdBase} font-weight: bold; color: #60a5fa;">${c.PLACA || ''}</td>
+          <td style="${tdBase}">${c.MUC || ''}</td>
           
           <td style="${tdBase} color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.05);">$${fletePagarLogis.toLocaleString('es-CO')}</td>
           <td style="${tdBase} color: #3b82f6; font-weight: bold; background: rgba(59, 130, 246, 0.05);">$${fleteFacturarLogis.toLocaleString('es-CO')}</td>
           
-          <td style="${tdBase}">${c.f_act || ''}</td>
-          <td style="${tdBase} color: #fbbf24;">${c.est_real || ''}</td>
+          <td style="${tdBase}">${c.F_ACT || ''}</td>
+          <td style="${tdBase} color: #fbbf24;">${c.EST_REAL || ''}</td>
           
           ${excelCell('tipo_anticipo', f.tipo_anticipo)}
           ${excelCell('valor_anticipo', f.valor_anticipo)}
