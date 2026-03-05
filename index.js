@@ -340,6 +340,15 @@ app.get('/', async (req, res) => {
               console.error("Error al guardar tipo cumplido", e); 
             }
           }
+       async function formatToMoney(cargaId, input) {
+  let numValue = input.value || 0;
+  // Cambia el tipo a texto para mostrar el símbolo $
+  input.type = 'text';
+  input.value = '$' + Number(numValue).toLocaleString('es-CO');
+  
+  // Ejecuta tu función de actualización existente
+  await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
+}
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
