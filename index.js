@@ -388,6 +388,14 @@ app.get('/', async (req, res) => {
   }
   await actualizarEntrega(cargaId, 'presenta_novedades', valor);
 }
+        async function formatToMoneyDesc(cargaId, input) {
+  let numValue = input.value || 0;
+  input.type = 'text';
+  input.value = '$' + Number(numValue).toLocaleString('es-CO');
+  
+  // Guardar el valor numérico en la base de datos
+  await actualizarEntrega(cargaId, 'valor_descuento', numValue);
+}
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
