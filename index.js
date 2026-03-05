@@ -16,14 +16,13 @@ const Carga = db.define('Carga', {
   id: { 
     type: DataTypes.INTEGER, 
     primaryKey: true, 
-    field: 'ID' // Solución definitiva al error de image_a08e7b.png
+    field: 'ID' // Solución definitiva al error de las imágenes image_a08e7b y image_a0875b
   },
   placa: { type: DataTypes.STRING, field: 'PLACA' },
   cont: { type: DataTypes.STRING, field: 'CONTENEDOR' },
   empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, 
   comercial: { type: DataTypes.STRING, field: 'COMERCIAL' },
-  puerto: { type: DataTypes.STRING, field: 'PUERTO' },
-  fecha_reg: { type: DataTypes.STRING, field: 'FECHA REGISTRO' }
+  puerto: { type: DataTypes.STRING, field: 'PUERTO' }
 }, { 
   tableName: 'Cargas', 
   timestamps: false 
@@ -77,7 +76,7 @@ app.get('/', async (req, res) => {
 
     res.send(`<html><head><title>YEGO MASTER</title>${css}</head><body><div class="container">
       <h1 style="color:#3b82f6">YEGO 💰 Finanzas <small style="color:#64748b; font-size:12px">| Control Total</small></h1>
-      <div class="card"><h3>Cartera Total</h3><p style="font-size:24px; color:#34d399; margin:0;">$ ${total.toLocaleString()}</p></div>
+      <div class="card"><h3>Total Cartera</h3><p style="font-size:24px; color:#34d399; margin:0;">$ ${total.toLocaleString()}</p></div>
       <table>
         <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>EMPRESA</th><th>COMERCIAL</th><th>PUERTO</th><th>VALOR FLETE</th><th>PAGO</th><th>ACCIÓN</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -86,7 +85,6 @@ app.get('/', async (req, res) => {
   } catch (err) { res.send(`<h2>Error de Sincronización</h2><p>${err.message}</p>`); }
 });
 
-// --- RUTA EDITAR ---
 app.get('/editar/:id', async (req, res) => {
     const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
     res.send(`<html><head>${css}</head><body><div class="container" style="max-width:400px; margin-top:50px;">
@@ -95,7 +93,7 @@ app.get('/editar/:id', async (req, res) => {
         <p style="color:#94a3b8">Empresa: ${f.Carga.empresa}</p>
         <form action="/guardar/${f.cargaId}" method="POST">
           <label style="font-size:11px; color:#94a3b8">VALOR FLETE</label><br>
-          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;">
+          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;">
           <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155;border-radius:6px;">
             <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
             <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
