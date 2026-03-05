@@ -222,33 +222,44 @@ app.get('/', async (req, res) => {
           }
 
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-    let porcentaje = 0;
+    if (!valorSeleccionado) return;
 
-    // Lógica dinámica: busca cualquier número seguido de % dentro del texto
-    if (valorSeleccionado.includes("%")) {
-        let extraido = valorSeleccionado.match(/(\d+)%/);
-        if (extraido) {
-            porcentaje = parseInt(extraido[1]) / 100;
-        }
+    let porcentaje = 0;
+    // Busca cualquier número que esté antes de un % (ej: 65, 70, 50)
+    const match = valorSeleccionado.match(/(\d+)%/);
+    
+    if (match) {
+        porcentaje = parseInt(match[1]) / 100;
     } else if (valorSeleccionado.includes("TOTAL")) {
         porcentaje = 1.0;
     }
 
     const valorCalculado = Math.round(flete * porcentaje);
+    
+    // Actualización visual inmediata antes de enviar al servidor
+    const celdaValor = document.getElementById(`valor-ant-${cargaId}`);
+    if (celdaValor) {
+        celdaValor.innerText = '$' + valorCalculado.toLocaleString('es-CO');
+    }
 
     try {
-        await fetch('/actualizar-anticipo-directo', {
+        const response = await fetch('/actualizar-anticipo-directo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                cargaId, 
+                cargaId: cargaId, 
                 tipo_anticipo: valorSeleccionado, 
                 valor_anticipo: valorCalculado 
             })
         });
-        location.reload(); // Recarga para ver el nuevo valor calculado en la celda
+        
+        if (!response.ok) throw new Error("Error en servidor");
+        
+        // Opcional: recargar después de un segundo para asegurar sincronía
+        setTimeout(() => location.reload(), 1000); 
     } catch (e) { 
-        console.error("Error al calcular anticipo:", e); 
+        console.error("Error al guardar:", e);
+        alert("No se pudo guardar el anticipo");
     }
 }
 
