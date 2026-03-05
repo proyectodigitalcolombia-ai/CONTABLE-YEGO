@@ -19,7 +19,16 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    const cargas = await db.query('SELECT * FROM "Cargas" ORDER BY id DESC LIMIT 150', { type: QueryTypes.SELECT });
+    // FILTRO CRÍTICO: Solo servicios con placa y con est_real = 'OK'
+    const sql = `
+      SELECT * FROM "Cargas" 
+      WHERE placa IS NOT NULL 
+      AND placa != '' 
+      AND est_real = 'OK' 
+      ORDER BY id DESC 
+      LIMIT 200`;
+
+    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
     let totalPendiente = 0;
@@ -34,8 +43,8 @@ app.get('/', async (req, res) => {
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 12px;">
           <td style="padding: 5px 8px; color: #94a3b8;">#${idReal}</td>
-          <td style="padding: 5px 8px;"><b>${c.placa || '---'}</b></td>
-          <td style="padding: 5px 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.cli || '---'}</td>
+          <td style="padding: 5px 8px;"><b>${c.placa}</b></td>
+          <td style="padding: 5px 8px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.cli || '---'}</td>
           <td style="padding: 5px 8px;">${c.f_d || '---'}</td>
           <td style="padding: 5px 8px; color: #10b981; font-weight: bold;">$${fleteNum.toLocaleString('es-CO')}</td>
           <td style="padding: 5px 8px;">
@@ -49,16 +58,19 @@ app.get('/', async (req, res) => {
     }).join('');
 
     res.send(`
-      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding:15px; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 10px; border-radius: 8px;">
-          <h3 style="color:#3b82f6; margin:0; font-size: 16px;">🚛 YEGO CONTABLE V20</h3>
+      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', Tahoma, sans-serif; padding:15px; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 10px; border-radius: 8px; border-left: 4px solid #10b981;">
+          <div>
+            <h3 style="color:#3b82f6; margin:0; font-size: 16px;">🚛 YEGO CONTABLE V20</h3>
+            <small style="color: #10b981;">Filtro: Solo despachos con Placa y OK</small>
+          </div>
           <div style="text-align: right;">
-            <small style="color:#94a3b8; font-size: 10px;">POR PAGAR:</small><br>
-            <b style="color:#ef4444; font-size: 16px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
+            <small style="color:#94a3b8; font-size: 10px;">PENDIENTE POR COBRO:</small><br>
+            <b style="color:#ef4444; font-size: 18px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
 
-        <input type="text" id="buscador" placeholder="🔍 Filtrar placa..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:5px; border:1px solid #334155; background:#1e293b; color:white; font-size: 13px;">
+        <input type="text" id="buscador" placeholder="🔍 Buscar placa en listado filtrado..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:5px; border:1px solid #334155; background:#1e293b; color:white; font-size: 13px;">
 
         <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:5px; overflow:hidden;">
           <thead style="background:#1e40af; font-size: 12px;">
@@ -85,9 +97,10 @@ app.get('/', async (req, res) => {
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error: " + err.message); }
+  } catch (err) { res.status(500).send("Error en filtro: " + err.message); }
 });
 
+// Rutas de edición (Se mantienen igual)
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
   res.send(`
@@ -115,4 +128,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO V20 Compacto')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 Filtros OK aplicados')));
