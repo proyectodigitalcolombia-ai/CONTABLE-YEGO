@@ -86,23 +86,23 @@ app.get('/', async (req, res) => {
 
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
-  res.send(\`
+  res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:50px">
       <div style="max-width:350px; margin:auto; background:#1e293b; padding:30px; border-radius:15px; border:1px solid #3b82f6">
         <h3>Liquidar #${req.params.id}</h3>
         <form action="/guardar/${req.params.id}" method="POST">
           <label>VALOR FLETE (COP):</label>
-          <input type="number" name="v_flete" value="\${f.v_flete}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155">
+          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155">
           <label>ESTADO:</label>
           <select name="est_pago" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155">
-            <option \${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
-            <option \${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+            <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+            <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
           </select>
           <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:10px">GUARDAR</button>
         </form>
         <p style="text-align:center"><a href="/" style="color:#94a3b8; text-decoration:none; font-size:12px">← Volver</a></p>
       </div>
-    </body>\`);
+    </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
@@ -110,4 +110,5 @@ app.post('/guardar/:id', async (req, res) => {
   res.redirect('/');
 });
 
-app.listen(process.env.PORT || 3000, () => console.log('🚀 Operativo'));
+const PORT = process.env.PORT || 3000;
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 Operativo')));
