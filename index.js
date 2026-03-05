@@ -99,16 +99,14 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">
-    <select 
-        onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
-        style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;">
-        
-        <option value="PENDIENTE" ${estadoContable === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
-        <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
-        
-    </select>
-</td>
-          <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
+            <select 
+                onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
+                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;">
+                <option value="PENDIENTE" ${estadoContable === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+                <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
+            </select>
+          </td>
+          <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
@@ -212,9 +210,45 @@ app.get('/', async (req, res) => {
               fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
             });
           });
+
+          async function actualizarEstadoFinanciero(id, nuevoEstado) {
+            let fechaActualizada = null;
+            if (nuevoEstado === "TRANSFERIDO") {
+                const ahora = new Date();
+                fechaActualizada = ahora.toISOString().split('T')[0];
+            }
+
+            try {
+                const response = await fetch('/actualizar-estado-financiero', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, estado: nuevoEstado, fechaPago: fechaActualizada })
+                });
+
+                if (response.ok) {
+                    const celdaFecha = document.getElementById("fecha-pago-" + id);
+                    if (celdaFecha) {
+                        celdaFecha.innerText = fechaActualizada || '---';
+                        celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
+                    }
+                }
+            } catch (error) { console.error(error); }
+          }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
+});
+
+app.post('/actualizar-estado-financiero', async (req, res) => {
+  try {
+    const { id, estado, fechaPago } = req.body;
+    await Finanza.upsert({ 
+        cargaId: id, 
+        est_pago: estado, 
+        fecha_pago_ant: fechaPago 
+    });
+    res.sendStatus(200);
+  } catch (error) { res.status(500).send(error.message); }
 });
 
 app.post('/actualizar-anticipo-directo', async (req, res) => {
