@@ -61,7 +61,7 @@ app.get('/', async (req, res) => {
     let totalPendiente = 0;
     let filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
-      const fletePagar = Number(f.v_flete || 0);
+      const fletePagar = Number(f.v_flete) > 0 ? Number(f.v_flete) : Number(c.flete_pagar || c.v_flete || 0);
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
