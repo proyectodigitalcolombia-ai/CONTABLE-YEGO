@@ -179,7 +179,16 @@ app.get('/editar/:id', async (req, res) => {
         <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
           <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
           <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div><label>TIPO ANTICIPO</label><input type="text" name="tipo_anticipo" value="${f.tipo_anticipo||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div class="campo">
+  <label>Tipo de Anticipo:</label>
+  <select name="tipo_anticipo" id="tipo_anticipo" class="input-estilizado" onchange="calcularAutomatico()">
+    <option value="">Seleccione una opción...</option>
+    <option value="Anticipo normal (70%)">Anticipo normal (70%)</option>
+    <option value="Anticipo parcial (65%)">Anticipo parcial (65%)</option>
+    <option value="Anticipo medio (50%)">Anticipo medio (50%)</option>
+    <option value="Sin anticipo (0)">Sin anticipo (0)</option>
+  </select>
+</div
           <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
