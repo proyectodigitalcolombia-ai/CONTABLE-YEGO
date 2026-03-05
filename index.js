@@ -1,237 +1,268 @@
-app.get('/', async (req, res) => {
-  try {
+const express = require('express');
+const { Sequelize, DataTypes, QueryTypes } = require('sequelize');
 
-    const sql = `
-    SELECT 
-      c.*,
-      f."v_flete",
-      f."v_facturar",
-      f."est_pago",
-      f."tipo_anticipo",
-      f."valor_anticipo",
-      f."sobre_anticipo",
-      f."estado_ant",
-      f."fecha_pago_ant",
-      f."tipo_cumplido",
-      f."fecha_cump_virtual",
-      f."ent_manifiesto",
-      f."ent_remesa",
-      f."ent_hoja_tiempos",
-      f."ent_docs_cliente",
-      f."ent_facturas",
-      f."ent_tirilla_vacio",
-      f."ent_tiq_cargue",
-      f."ent_tiq_descargue",
-      f."presenta_novedades",
-      f."obs_novedad",
-      f."valor_descuento",
-      f."fecha_cump_docs",
-      f."fecha_legalizacion",
-      f."retefuente",
-      f."reteica",
-      f."saldo_a_pagar",
-      f."estado_final",
-      f."dias_sin_pagar",
-      f."dias_sin_cumplir"
-    FROM "Cargas" c
-    LEFT JOIN "Yego_Finanzas" f
-    ON f."cargaId" = c.id
-    WHERE c.placa IS NOT NULL
-    AND c.placa != ''
-    ORDER BY c.id DESC
-    LIMIT 150
-    `;
+const app = express();
 
-    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-    let totalPendiente = 0;
+/* =============================
+   CONEXION BASE DE DATOS
+============================= */
 
-    let filas = cargas.map(c => {
+const db = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  }
+});
 
-      const fletePagar = Number(c.v_flete || 0);
-      const estadoContable = c.est_pago || "PENDIENTE";
+/* =============================
+   MODELO FINANZAS
+============================= */
 
-      if (estadoContable === 'PENDIENTE') {
-        totalPendiente += fletePagar;
-      }
+const Finanza = db.define('Finanza', {
 
-      const statusCheck = (val) => {
-        if (val === 'SI') return '<span style="color:#10b981;">✅ SI</span>';
-        if (val === 'NO') return '<span style="color:#ef4444;">❌ NO</span>';
-        return val || '---';
-      };
+  cargaId: { type: DataTypes.INTEGER, unique: true },
 
-      const tdStyle = `
-      padding:10px;
-      text-align:center;
-      border-right:1px solid #334155;
-      white-space:nowrap;
-      `;
+  v_flete: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      return `
-      <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" 
-      style="border-bottom:1px solid #334155;font-size:11px;">
+  v_facturar: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle} color:#94a3b8;">#${c.id}</td>
-      <td style="${tdStyle}">${c.f_doc || '---'}</td>
-      <td style="${tdStyle}">${c.oficina || '---'}</td>
-      <td style="${tdStyle}">${c.orig || '---'}</td>
-      <td style="${tdStyle}">${c.dest || '---'}</td>
-      <td style="${tdStyle}">${c.cli || '---'}</td>
-      <td style="${tdStyle}">${c.cont || '---'}</td>
-      <td style="${tdStyle}">${c.ped || '---'}</td>
+  est_pago: { type: DataTypes.STRING, defaultValue:'PENDIENTE' },
 
-      <td style="${tdStyle} background:rgba(59,130,246,0.1);font-weight:bold;">
-      ${c.placa}
-      </td>
+  tipo_anticipo: { type: DataTypes.STRING },
 
-      <td style="${tdStyle}">${c.muc || '---'}</td>
+  valor_anticipo: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle} color:#10b981;font-weight:bold;">
-      $${fletePagar.toLocaleString('es-CO')}
-      </td>
+  sobre_anticipo: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle} color:#3b82f6;">
-      $${Number(c.v_facturar || 0).toLocaleString('es-CO')}
-      </td>
+  estado_ant: { type: DataTypes.STRING },
 
-      <td style="${tdStyle}">${c.f_act || '---'}</td>
+  fecha_pago_ant: { type: DataTypes.DATEONLY },
 
-      <td style="${tdStyle} color:#fbbf24;">
-      ${c.est_real || '---'}
-      </td>
+  saldo_a_pagar: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle}">${c.tipo_anticipo || '---'}</td>
+  retefuente: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle}">
-      $${Number(c.valor_anticipo || 0).toLocaleString('es-CO')}
-      </td>
+  reteica: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle}">
-      $${Number(c.sobre_anticipo || 0).toLocaleString('es-CO')}
-      </td>
+  valor_descuento: { type: DataTypes.DECIMAL(15,2), defaultValue:0 },
 
-      <td style="${tdStyle}">${c.estado_ant || '---'}</td>
+  dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue:0 }
 
-      <td style="${tdStyle}">${c.fecha_pago_ant || '---'}</td>
+},{
+  tableName:'Yego_Finanzas'
+});
 
-      <td style="${tdStyle}">${c.tipo_cumplido || '---'}</td>
+/* =============================
+   FUNCION STATUS SI / NO
+============================= */
 
-      <td style="${tdStyle}">${c.fecha_cump_virtual || '---'}</td>
+function statusCheck(v){
 
-      <td style="${tdStyle}">${statusCheck(c.ent_manifiesto)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_remesa)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_hoja_tiempos)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_docs_cliente)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_facturas)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_tirilla_vacio)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_tiq_cargue)}</td>
-      <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue)}</td>
-      <td style="${tdStyle}">${statusCheck(c.presenta_novedades)}</td>
+ if(v==="SI") return '<span style="color:#10b981;">✅ SI</span>'
 
-      <td style="${tdStyle}">${c.obs_novedad || '---'}</td>
+ if(v==="NO") return '<span style="color:#ef4444;">❌ NO</span>'
 
-      <td style="${tdStyle} color:#ef4444;">
-      $${Number(c.valor_descuento || 0).toLocaleString('es-CO')}
-      </td>
+ return v || "---"
+}
 
-      <td style="${tdStyle}">${c.fecha_cump_docs || '---'}</td>
-      <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
+/* =============================
+   LISTADO PRINCIPAL
+============================= */
 
-      <td style="${tdStyle}">
-      $${Number(c.retefuente || 0).toLocaleString('es-CO')}
-      </td>
+app.get('/', async (req,res)=>{
 
-      <td style="${tdStyle}">
-      $${Number(c.reteica || 0).toLocaleString('es-CO')}
-      </td>
+try{
 
-      <td style="${tdStyle} background:rgba(16,185,129,0.1);
-      font-weight:bold;color:#10b981;">
-      $${Number(c.saldo_a_pagar || 0).toLocaleString('es-CO')}
-      </td>
+const sql = `
 
-      <td style="${tdStyle}">${c.estado_final || '---'}</td>
+SELECT
 
-      <td style="${tdStyle} color:#ef4444;">
-      ${c.dias_sin_pagar || 0}
-      </td>
+c.*,
 
-      <td style="${tdStyle} color:#3b82f6;">
-      ${c.dias_sin_cumplir || 0}
-      </td>
+f."v_flete",
+f."v_facturar",
+f."est_pago",
+f."tipo_anticipo",
+f."valor_anticipo",
+f."sobre_anticipo",
+f."estado_ant",
+f."fecha_pago_ant",
+f."saldo_a_pagar",
+f."retefuente",
+f."reteica",
+f."valor_descuento",
+f."dias_sin_pagar"
 
-      <td style="padding:10px;text-align:center;">
-      <a href="/editar/${c.id}" 
-      style="color:#3b82f6;text-decoration:none;font-weight:bold;">
-      [LIQUIDAR]
-      </a>
-      </td>
+FROM "Cargas" c
 
-      </tr>
-      `;
+LEFT JOIN "Yego_Finanzas" f
+ON f."cargaId" = c.id
 
-    }).join('');
+WHERE c.placa IS NOT NULL
+AND c.placa != ''
 
-    res.send(`
-    <body style="background:#0f172a;color:white;font-family:sans-serif;padding:20px">
+ORDER BY c.id DESC
+LIMIT 150
 
-    <h2 style="color:#3b82f6;">YEGO SISTEMA CONTABLE</h2>
+`;
 
-    <h3 style="color:#ef4444;">
-    TOTAL POR PAGAR: $ ${totalPendiente.toLocaleString('es-CO')}
-    </h3>
+const cargas = await db.query(sql,{ type: QueryTypes.SELECT })
 
-    <input id="buscador" placeholder="Buscar placa..."
-    style="width:100%;padding:10px;margin-bottom:15px;background:#1e293b;color:white;border:1px solid #334155">
+let totalPendiente = 0
 
-    <div style="overflow-x:auto">
+let filas = cargas.map(c=>{
 
-    <table style="width:100%;border-collapse:collapse;background:#1e293b">
+const flete = Number(c.v_flete || 0)
 
-    <thead style="background:#1e40af;font-size:11px;">
-    <tr>
+if((c.est_pago || "PENDIENTE") === "PENDIENTE")
+totalPendiente += flete
 
-    <th>ID</th>
-    <th>FECHA</th>
-    <th>OFICINA</th>
-    <th>ORIGEN</th>
-    <th>DESTINO</th>
-    <th>CLIENTE</th>
-    <th>CONT</th>
-    <th>PED</th>
-    <th>PLACA</th>
-    <th>MUC</th>
-    <th>FLETE PAGAR</th>
-    <th>FACTURAR</th>
-    <th>F ACT</th>
-    <th>ESTADO</th>
+return `
 
-    <th colspan="20">GESTIÓN CONTABLE</th>
+<tr class="fila" data-placa="${(c.placa||"").toLowerCase()}">
 
-    <th>ACCION</th>
+<td>#${c.id}</td>
 
-    </tr>
-    </thead>
+<td>${c.f_doc||"---"}</td>
 
-    <tbody id="tabla">
-    ${filas}
-    </tbody>
+<td>${c.oficina||"---"}</td>
 
-    </table>
+<td>${c.orig||"---"}</td>
 
-    </div>
+<td>${c.dest||"---"}</td>
+
+<td>${c.cli||"---"}</td>
+
+<td style="font-weight:bold;color:#3b82f6">
+${c.placa||""}
+</td>
+
+<td style="color:#10b981">
+$${flete.toLocaleString("es-CO")}
+</td>
+
+<td>
+$${Number(c.v_facturar||0).toLocaleString("es-CO")}
+</td>
+
+<td>
+${c.tipo_anticipo||"---"}
+</td>
+
+<td>
+$${Number(c.valor_anticipo||0).toLocaleString("es-CO")}
+</td>
+
+<td>
+$${Number(c.sobre_anticipo||0).toLocaleString("es-CO")}
+</td>
+
+<td>
+$${Number(c.retefuente||0).toLocaleString("es-CO")}
+</td>
+
+<td>
+$${Number(c.reteica||0).toLocaleString("es-CO")}
+</td>
+
+<td style="color:#ef4444">
+$${Number(c.valor_descuento||0).toLocaleString("es-CO")}
+</td>
+
+<td style="color:#10b981;font-weight:bold">
+$${Number(c.saldo_a_pagar||0).toLocaleString("es-CO")}
+</td>
+
+<td>
+${c.dias_sin_pagar||0}
+</td>
+
+<td>
+
+<a href="/editar/${c.id}" style="color:#3b82f6;font-weight:bold">
+LIQUIDAR
+</a>
+
+</td>
+
+</tr>
+`
+}).join("")
+
+res.send(`
+
+<body style="background:#0f172a;color:white;font-family:sans-serif;padding:20px">
+
+<h2 style="color:#3b82f6">YEGO SISTEMA CONTABLE</h2>
+
+<div style="margin-bottom:20px;color:#ef4444;font-size:20px">
+
+TOTAL POR PAGAR  
+<b>$ ${totalPendiente.toLocaleString("es-CO")}</b>
+
+</div>
+
+<input id="buscar" placeholder="buscar placa"
+style="width:100%;padding:10px;margin-bottom:15px;background:#1e293b;color:white;border:1px solid #334155">
+
+<div style="overflow-x:auto">
+
+<table style="width:100%;border-collapse:collapse;background:#1e293b">
+
+<thead style="background:#1e40af">
+
+<tr>
+
+<th>ID</th>
+<th>FECHA</th>
+<th>OFICINA</th>
+<th>ORIGEN</th>
+<th>DESTINO</th>
+<th>CLIENTE</th>
+<th>PLACA</th>
+<th>FLETE PAGAR</th>
+<th>FACTURAR</th>
+<th>TIPO ANTICIPO</th>
+<th>VALOR ANT</th>
+<th>SOBRE ANT</th>
+<th>RETEFUENTE</th>
+<th>RETEICA</th>
+<th>DESCUENTO</th>
+<th>SALDO</th>
+<th>DIAS SIN PAGAR</th>
+<th>ACCION</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+${filas}
+
+</tbody>
+
+</table>
+
+</div>
 
 <script>
 
-document.getElementById("buscador").addEventListener("input", e => {
+document.getElementById("buscar").addEventListener("input",e=>{
 
-const term = e.target.value.toLowerCase()
+const t = e.target.value.toLowerCase()
 
-document.querySelectorAll(".fila-carga").forEach(f => {
+document.querySelectorAll(".fila").forEach(f=>{
 
 f.style.display =
-f.dataset.placa.includes(term) ? "" : "none"
+f.dataset.placa.includes(t) ? "" : "none"
 
 })
 
@@ -240,9 +271,95 @@ f.dataset.placa.includes(term) ? "" : "none"
 </script>
 
 </body>
-`);
 
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+`)
+
+}catch(e){
+
+res.send(e.message)
+
+}
+
+})
+
+/* =============================
+   FORMULARIO EDICION
+============================= */
+
+app.get('/editar/:id', async(req,res)=>{
+
+const [f] = await Finanza.findOrCreate({
+where:{ cargaId:req.params.id }
+})
+
+res.send(`
+
+<body style="background:#0f172a;color:white;font-family:sans-serif;padding:40px">
+
+<h2>Editar carga #${req.params.id}</h2>
+
+<form method="POST" action="/guardar/${req.params.id}">
+
+<label>Flete pagar</label><br>
+<input name="v_flete" value="${f.v_flete}"><br><br>
+
+<label>Flete facturar</label><br>
+<input name="v_facturar" value="${f.v_facturar}"><br><br>
+
+<label>Valor anticipo</label><br>
+<input name="valor_anticipo" value="${f.valor_anticipo}"><br><br>
+
+<label>ReteFuente</label><br>
+<input name="retefuente" value="${f.retefuente}"><br><br>
+
+<label>ReteICA</label><br>
+<input name="reteica" value="${f.reteica}"><br><br>
+
+<label>Descuento</label><br>
+<input name="valor_descuento" value="${f.valor_descuento}"><br><br>
+
+<label>Saldo pagar</label><br>
+<input name="saldo_a_pagar" value="${f.saldo_a_pagar}"><br><br>
+
+<label>Dias sin pagar</label><br>
+<input name="dias_sin_pagar" value="${f.dias_sin_pagar}"><br><br>
+
+<button type="submit">Guardar</button>
+
+</form>
+
+</body>
+
+`)
+})
+
+/* =============================
+   GUARDAR
+============================= */
+
+app.post('/guardar/:id', async(req,res)=>{
+
+await Finanza.update(
+req.body,
+{ where:{ cargaId:req.params.id } }
+)
+
+res.redirect('/')
+
+})
+
+/* =============================
+   SERVIDOR
+============================= */
+
+const PORT = process.env.PORT || 3000
+
+db.sync().then(()=>{
+
+app.listen(PORT,()=>{
+
+console.log("🚀 YEGO SISTEMA INICIADO")
+
+})
+
+})
