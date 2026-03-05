@@ -16,15 +16,15 @@ const Carga = db.define('Carga', {
   id: { 
     type: DataTypes.INTEGER, 
     primaryKey: true, 
-    field: 'ID' // Corrige el error crítico de image_a08e7b
+    field: 'ID' // Corrige el error crítico: column Carga.ID does not exist
   },
   placa: { type: DataTypes.STRING, field: 'PLACA' },
   cont: { type: DataTypes.STRING, field: 'CONTENEDOR' },
-  empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, // Soluciona el N/A de image_a092d7
+  empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, // Soluciona los datos "N/A" y el error Carga.empresa
   comercial: { type: DataTypes.STRING, field: 'COMERCIAL' },
   puerto: { type: DataTypes.STRING, field: 'PUERTO' }
 }, { 
-  tableName: 'Cargas', 
+  tableName: 'Cargas', // Asegúrate de que este sea el nombre exacto de tu tabla
   timestamps: false 
 });
 
@@ -94,7 +94,7 @@ app.get('/editar/:id', async (req, res) => {
     res.send(`<html><head>${css}</head><body><div class="container" style="max-width:400px; margin-top:50px;">
       <div style="background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
         <h2 style="color:#3b82f6">Liquidar #${f.cargaId}</h2>
-        <p style="color:#94a3b8">Empresa: ${f.Carga.empresa}</p>
+        <p style="color:#94a3b8">Empresa: ${f.Carga?.empresa || 'N/A'}</p>
         <form action="/guardar/${f.cargaId}" method="POST">
           <label style="font-size:11px; color:#94a3b8">VALOR FLETE</label><br>
           <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;">
