@@ -45,13 +45,6 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
-// FUNCIÓN PARA EL CHULO VISUAL EN LA TABLA
-const renderCheck = (val) => {
-  if (val === 'SI') return '<b style="color:#10b981;">✅ SI</b>';
-  if (val === 'NO') return '<span style="color:#ef4444;">❌ NO</span>';
-  return val || '---';
-};
-
 app.get('/', async (req, res) => {
   try {
     const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
@@ -90,15 +83,15 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_manifiesto)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_remesa)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_hoja_tiempos)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_docs_cliente)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_facturas)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_tirilla_vacio)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_tiq_cargue)}</td>
-          <td style="${tdStyle}">${renderCheck(f.ent_tiq_descargue)}</td>
-          <td style="${tdStyle}">${renderCheck(f.presenta_novedades)}</td>
+          <td style="${tdStyle}">${f.ent_manifiesto || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_remesa || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_hoja_tiempos || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_docs_cliente || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_facturas || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_tirilla_vacio || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_tiq_cargue || 'NO'}</td>
+          <td style="${tdStyle}">${f.ent_tiq_descargue || 'NO'}</td>
+          <td style="${tdStyle}">${f.presenta_novedades || 'NO'}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
@@ -170,23 +163,6 @@ app.get('/', async (req, res) => {
 
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
-
-  // GENERADOR DE BOTONES CLICKABLES
-  const toggleButton = (name, label, currentVal) => {
-    const isActive = currentVal === 'SI';
-    return `
-      <div style="margin-bottom: 5px;">
-        <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">${label}</label>
-        <input type="hidden" name="${name}" id="input_${name}" value="${currentVal || 'NO'}">
-        <button type="button" onclick="toggleStatus('${name}')" id="btn_${name}" 
-          style="width:100%; padding:10px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; transition: 0.3s;
-          background: ${isActive ? '#065f46' : '#334155'}; color: ${isActive ? '#34d399' : '#94a3b8'};">
-          ${isActive ? '✅ ENTREGADO' : '❌ PENDIENTE'}
-        </button>
-      </div>
-    `;
-  };
-
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
       <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
@@ -194,47 +170,34 @@ app.get('/editar/:id', async (req, res) => {
         <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
           <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
           <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
+          <div><label>TIPO ANTICIPO</label><input type="text" name="tipo_anticipo" value="${f.tipo_anticipo||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           
-          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-             <p style="grid-column: span 4; margin:0; color:#3b82f6; font-weight:bold; border-bottom: 1px solid #1e293b; padding-bottom:10px;">VALIDACIÓN RÁPIDA DE DOCUMENTOS</p>
-             ${toggleButton('ent_manifiesto', 'MANIFIESTO', f.ent_manifiesto)}
-             ${toggleButton('ent_remesa', 'REMESA', f.ent_remesa)}
-             ${toggleButton('ent_hoja_tiempos', 'HOJA TIEMPOS', f.ent_hoja_tiempos)}
-             ${toggleButton('ent_docs_cliente', 'DOCS CLIENTE', f.ent_docs_cliente)}
-             ${toggleButton('ent_facturas', 'FACTURAS', f.ent_facturas)}
-             ${toggleButton('ent_tirilla_vacio', 'TIRILLA VACÍO', f.ent_tirilla_vacio)}
-             ${toggleButton('ent_tiq_cargue', 'TIQ. CARGUE', f.ent_tiq_cargue)}
-             ${toggleButton('ent_tiq_descargue', 'TIQ. DESCARGUE', f.ent_tiq_descargue)}
-             <div style="grid-column: span 4;">
-                ${toggleButton('presenta_novedades', '¿PRESENTA NOVEDADES?', f.presenta_novedades)}
+          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS (INGRESAR SI/NO)</p>
+             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
+                <label>MANIFIESTO <input type="text" name="ent_manifiesto" value="${f.ent_manifiesto}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>REMESA <input type="text" name="ent_remesa" value="${f.ent_remesa}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>HOJA TIEMPOS <input type="text" name="ent_hoja_tiempos" value="${f.ent_hoja_tiempos}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>DOCS CLIENTE <input type="text" name="ent_docs_cliente" value="${f.ent_docs_cliente}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>FACTURAS <input type="text" name="ent_facturas" value="${f.ent_facturas}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>TIRILLA VACÍO <input type="text" name="ent_tirilla_vacio" value="${f.ent_tirilla_vacio}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>TIQ. CARGUE <input type="text" name="ent_tiq_cargue" value="${f.ent_tiq_cargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
+                <label>TIQ. DESCARGUE <input type="text" name="ent_tiq_descargue" value="${f.ent_tiq_descargue}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;"></label>
              </div>
           </div>
 
           <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
+          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
+          <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
 
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px; margin-top:10px;">ACTUALIZAR Y GUARDAR CAMBIOS</button>
+          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS CONTABLES</button>
         </form>
-
-        <script>
-          function toggleStatus(id) {
-            const input = document.getElementById('input_' + id);
-            const btn = document.getElementById('btn_' + id);
-            if (input.value === 'SI') {
-              input.value = 'NO';
-              btn.innerText = '❌ PENDIENTE';
-              btn.style.background = '#334155';
-              btn.style.color = '#94a3b8';
-            } else {
-              input.value = 'SI';
-              btn.innerText = '✅ ENTREGADO';
-              btn.style.background = '#065f46';
-              btn.style.color = '#34d399';
-            }
-          }
-        </script>
         <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
       </div>
     </body>`);
@@ -246,4 +209,4 @@ app.post('/guardar/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID INTERACTIVO ACTUALIZADO')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
