@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
+// MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN (MANTENIDO ORIGINAL)
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -60,7 +60,7 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = cargas.map(c => {
-      // ASEGURAMOS QUE LA COMPARACIÓN SEA POR NÚMERO PARA EVITAR FALLOS DE "123" vs 123
+      // AJUSTE CLAVE: Aseguramos la comparación de IDs para que la info de Finanza se pase a la fila de Carga
       const f = finanzas.find(fin => Number(fin.cargaId) === Number(c.id)) || {};
       
       const fletePagar = Number(f.v_flete || 0);
@@ -213,10 +213,9 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  // Aseguramos que guarde usando cargaId
   await Finanza.update(req.body, { where: { cargaId: req.params.id } });
   res.redirect('/');
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID ACTUALIZADO')));
