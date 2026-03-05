@@ -111,12 +111,18 @@ app.get('/', async (req, res) => {
           </td>
           <td id="fecha-pago-${c.id}" style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">
-            <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
-              <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
-              <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
-              <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
-            </select>
-          </td>
+            <td style="${tdStyle}">
+  <select 
+    onchange="actualizarTipoCumplido(${c.id}, this.value)" 
+    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+    <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
+    <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
+    <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
+  </select>
+</td>
+<td id="fecha-virtual-${c.id}" style="${tdStyle}">
+  ${f.fecha_cump_virtual || '---'}
+</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
           <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
@@ -260,6 +266,36 @@ app.get('/', async (req, res) => {
               fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
             });
           });
+          async function actualizarTipoCumplido(cargaId, nuevoTipo) {
+  let fechaActualizada = null;
+  
+  // Si el usuario selecciona cualquier opción (VIRTUAL o FÍSICO), se pone la fecha de hoy
+  if (nuevoTipo !== "") {
+    fechaActualizada = new Date().toISOString().split('T')[0];
+  }
+
+  try {
+    const response = await fetch('/actualizar-tipo-cumplido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        cargaId, 
+        tipo_cumplido: nuevoTipo, 
+        fecha_virtual: fechaActualizada 
+      })
+    });
+
+    if (response.ok) {
+      const celdaFecha = document.getElementById("fecha-virtual-" + cargaId);
+      if (celdaFecha) {
+        celdaFecha.innerText = fechaActualizada || '---';
+        celdaFecha.style.color = "#10b981"; // Color verde de éxito
+      }
+    }
+  } catch (e) { 
+    console.error("Error al guardar tipo cumplido", e); 
+  }
+}
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
@@ -289,10 +325,16 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
 
 app.post('/actualizar-tipo-cumplido', async (req, res) => {
   try {
-    const { cargaId, tipo_cumplido } = req.body;
-    await Finanza.upsert({ cargaId, tipo_cumplido });
+    const { cargaId, tipo_cumplido, fecha_virtual } = req.body;
+    await Finanza.upsert({ 
+      cargaId, 
+      tipo_cumplido, 
+      fecha_cump_virtual: fecha_virtual // Guardamos la fecha recibida
+    });
     res.sendStatus(200);
-  } catch (error) { res.status(500).send(error.message); }
+  } catch (error) { 
+    res.status(500).send(error.message); 
+  }
 });
 
 app.get('/editar/:id', async (req, res) => {
