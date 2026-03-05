@@ -174,11 +174,11 @@ app.get('/', async (req, res) => {
   >
   <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
 </td>
-          <td style="${tdStyle}">
+          <<td style="${tdStyle}">
   <input 
     type="date" 
     value="${f.fecha_cump_docs || ''}" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer;"
+    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
     onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
   >
 </td>
@@ -188,7 +188,7 @@ app.get('/', async (req, res) => {
   <input 
     type="date" 
     value="${f.fecha_legalizacion || ''}" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer;"
+    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
     onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
   >
 </td>
@@ -421,9 +421,8 @@ async function formatToMoneyDesc(cargaId, input) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cargaId, campo, valor })
     });
-    console.log(`Campo ${campo} actualizado a: ${valor}`);
   } catch (e) { 
-    console.error("Error al actualizar campo:", e); 
+    console.error("Error al guardar la fecha:", e); 
   }
 }
         </script>
