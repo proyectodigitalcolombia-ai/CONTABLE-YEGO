@@ -45,11 +45,12 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
-// Función auxiliar para el cambio de estado visual (Chulo/X)
+// Función visual para la tabla (Solo visualización)
 const statusCheck = (val) => {
-  if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
-  if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
-  return val || '---';
+  const v = (val || 'NO').toUpperCase();
+  if (v === 'SI') return '<b style="color: #10b981;">✅ SI</b>';
+  if (v === 'NO') return '<b style="color: #ef4444;">❌ NO</b>';
+  return v;
 };
 
 app.get('/', async (req, res) => {
@@ -90,15 +91,15 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${f.fecha_pago_ant || '---'}</td>
           <td style="${tdStyle}">${f.tipo_cumplido || '---'}</td>
           <td style="${tdStyle}">${f.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_remesa || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_facturas || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue || 'NO')}</td>
-          <td style="${tdStyle}">${statusCheck(f.presenta_novedades || 'NO')}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_manifiesto)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_remesa)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_hoja_tiempos)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_docs_cliente)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_facturas)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tirilla_vacio)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tiq_cargue)}</td>
+          <td style="${tdStyle}">${statusCheck(f.ent_tiq_descargue)}</td>
+          <td style="${tdStyle}">${statusCheck(f.presenta_novedades)}</td>
           <td style="${tdStyle}">${f.obs_novedad || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
@@ -211,9 +212,14 @@ app.get('/editar/:id', async (req, res) => {
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
+  // Aseguramos que guarde en MAYÚSCULAS para que la visualización funcione siempre
+  const data = { ...req.body };
+  Object.keys(data).forEach(key => {
+    if (typeof data[key] === 'string') data[key] = data[key].toUpperCase();
+  });
+  await Finanza.update(data, { where: { cargaId: req.params.id } });
   res.redirect('/');
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
+db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID ACTUALIZABLE')));
