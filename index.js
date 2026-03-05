@@ -19,81 +19,90 @@ const Finanza = db.define('Finanza', {
 
 app.get('/', async (req, res) => {
   try {
-    // Consultamos la tabla usando los nombres que nos dio el debug
-    const sql = 'SELECT * FROM "Cargas" ORDER BY id DESC LIMIT 100';
-    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
+    const cargas = await db.query('SELECT * FROM "Cargas" ORDER BY id DESC LIMIT 150', { type: QueryTypes.SELECT });
     const finanzas = await Finanza.findAll();
 
+    let totalPendiente = 0;
     let filas = cargas.map(c => {
-      // MAPEAMOS SEGÚN TU LISTA DE DEBUG:
       const idReal = c.id; 
-      const placa = c.placa || '---';
-      const cliente = c.cli || '---'; // cli = CLIENTE
-      const fechaDespacho = c.f_d || '---'; // f_d = FECHA DESPACHO
-      const despachador = c.desp || '---'; // desp = DESPACHADOR
-      
       const f = finanzas.find(fin => fin.cargaId === idReal);
-      const flete = f ? Number(f.v_flete).toLocaleString('es-CO') : "0";
+      const fleteNum = f ? Number(f.v_flete) : 0;
       const estado = f ? f.est_pago : "PENDIENTE";
-      const colorEstado = estado === 'PAGADO' ? '#10b981' : '#ef4444';
+      
+      if(estado === 'PENDIENTE') totalPendiente += fleteNum;
 
       return `
-        <tr style="border-bottom: 1px solid #334155">
+        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155">
           <td style="padding:12px">#${idReal}</td>
-          <td><b>${placa}</b></td>
-          <td>${cliente}</td>
-          <td>${fechaDespacho}</td>
-          <td style="color:#10b981; font-weight:bold">$ ${flete}</td>
-          <td style="color:${colorEstado}; font-weight:bold">${estado}</td>
-          <td>${despachador}</td>
+          <td><b>${c.placa || '---'}</b></td>
+          <td>${c.cli || '---'}</td>
+          <td>${c.f_d || '---'}</td>
+          <td style="color:#10b981; font-weight:bold">$ ${fleteNum.toLocaleString('es-CO')}</td>
+          <td style="color:${estado === 'PAGADO' ? '#10b981' : '#ef4444'}; font-weight:bold">${estado}</td>
+          <td>${c.desp || '---'}</td>
           <td><a href="/editar/${idReal}" style="color:#3b82f6; text-decoration:none; font-weight:bold">LIQUIDAR</a></td>
         </tr>`;
     }).join('');
 
     res.send(`
       <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:20px">
-        <h2 style="color:#3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom:10px">🚛 LOGÍSTICA YEGO - MÓDULO CONTABLE</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3b82f6; padding-bottom:10px; margin-bottom:20px">
+          <h2 style="color:#3b82f6; margin:0">🚛 LOGÍSTICA YEGO - CONTABILIDAD</h2>
+          <div style="background:#1e293b; padding:10px 20px; border-radius:10px; border:1px solid #ef4444">
+            <small style="color:#94a3b8">POR PAGAR:</small><br>
+            <b style="color:#ef4444; font-size:1.2em">$ ${totalPendiente.toLocaleString('es-CO')}</b>
+          </div>
+        </div>
+
+        <input type="text" id="buscador" placeholder="🔍 Buscar por placa..." style="width:100%; padding:12px; margin-bottom:20px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:white">
+
         <table style="width:100%; border-collapse:collapse; background:#1e293b; border-radius:10px; overflow:hidden">
-          <thead style="background:#1e40af; color:white">
+          <thead style="background:#1e40af">
             <tr>
               <th style="padding:15px; text-align:left">ID</th>
               <th style="text-align:left">PLACA</th>
               <th style="text-align:left">CLIENTE</th>
-              <th style="text-align:left">FECHA DESPACHO</th>
+              <th style="text-align:left">DESPACHO</th>
               <th style="text-align:left">VALOR FLETE</th>
-              <th style="text-align:left">ESTADO PAGO</th>
+              <th style="text-align:left">ESTADO</th>
               <th style="text-align:left">DESPACHADOR</th>
-              <th style="text-align:left">ACCIÓN</th>
+              <th style="text-align:left">ACCION</th>
             </tr>
           </thead>
-          <tbody>${filas}</tbody>
+          <tbody id="tabla-cargas">${filas}</tbody>
         </table>
+
+        <script>
+          document.getElementById('buscador').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.fila-carga').forEach(fila => {
+              fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
+            });
+          });
+        </script>
       </body>`);
-  } catch (err) {
-    res.status(500).send("Error: " + err.message);
-  }
+  } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
-// RUTAS DE EDICIÓN
 app.get('/editar/:id', async (req, res) => {
   const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
-  res.send(`
+  res.send(\`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding:50px">
       <div style="max-width:350px; margin:auto; background:#1e293b; padding:30px; border-radius:15px; border:1px solid #3b82f6">
-        <h3>Liquidar Servicio #${req.params.id}</h3>
+        <h3>Liquidar #${req.params.id}</h3>
         <form action="/guardar/${req.params.id}" method="POST">
-          <label>VALOR FLETE (COP):</label><br>
-          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155"><br>
-          <label>ESTADO:</label><br>
+          <label>VALOR FLETE (COP):</label>
+          <input type="number" name="v_flete" value="\${f.v_flete}" step="0.01" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155">
+          <label>ESTADO:</label>
           <select name="est_pago" style="width:100%; padding:10px; margin:10px 0; background:#0f172a; color:white; border:1px solid #334155">
-            <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
-            <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
-          </select><br><br>
-          <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer">ACTUALIZAR PAGO</button>
+            <option \${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+            <option \${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+          </select>
+          <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:10px">GUARDAR</button>
         </form>
-        <p style="text-align:center"><a href="/" style="color:#94a3b8; text-decoration:none; font-size:12px">Volver al inicio</a></p>
+        <p style="text-align:center"><a href="/" style="color:#94a3b8; text-decoration:none; font-size:12px">← Volver</a></p>
       </div>
-    </body>`);
+    </body>\`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
@@ -101,5 +110,4 @@ app.post('/guardar/:id', async (req, res) => {
   res.redirect('/');
 });
 
-const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO Online')));
+app.listen(process.env.PORT || 3000, () => console.log('🚀 Operativo'));
