@@ -92,4 +92,51 @@ app.get('/', async (req, res) => {
         <h1 style="color:#3b82f6">YEGO 💰 <small style="color:#94a3b8; font-size:14px">Finanzas</small></h1>
         <div class="card-grid">
           <div class="card"><h3>Total Flete</h3><p style="font-size:24px; color:#34d399">$ ${totalFlete.toLocaleString()}</p></div>
-          <div class="card" style="border-top-color:#8b5cf6"><h3>Viajes</h3><p style="font-size:24px; color:#8b5cf6">${desp
+          <div class="card" style="border-top-color:#8b5cf6"><h3>Viajes</h3><p style="font-size:24px; color:#8b5cf6">${despachos.length}</p></div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>VALOR FLETE</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </body></html>`);
+  } catch (err) { 
+    res.send(`<h2>Error de Base de Datos</h2><p>${err.message}</p>`); 
+  }
+});
+
+// --- RUTA EDITAR ---
+app.get('/editar/:id', async (req, res) => {
+  try {
+    const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
+    res.send(`<html><head>${css}</head><body>
+      <div style="max-width:400px;margin:40px auto;background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
+        <h2 style="color:#3b82f6">Liquidar Placa: ${f.Carga.placa}</h2>
+        <form action="/guardar/${f.cargaId}" method="POST">
+          <label>VALOR FLETE</label><br>
+          <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px">
+          <br><label>ANTICIPO</label><br>
+          <input type="number" name="v_anticipo" value="${f.v_anticipo}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#fbbf24;border:1px solid #334155;border-radius:6px">
+          <br><label>ESTADO</label><br>
+          <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155">
+            <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+            <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
+          </select>
+          <button type="submit" class="btn" style="width:100%;padding:15px;cursor:pointer">GUARDAR CAMBIOS</button>
+        </form>
+      </div></body></html>`);
+  } catch (e) { res.send(e.message); }
+});
+
+// --- RUTA GUARDAR ---
+app.post('/guardar/:id', async (req, res) => {
+  const { v_flete, v_anticipo, est_pago } = req.body;
+  const v_saldo = parseFloat(v_flete) - parseFloat(v_anticipo);
+  await Finanza.update({ v_flete, v_anticipo, v_saldo, est_pago }, { where: { cargaId: req.params.id } });
+  res.redirect('/');
+});
+
+const PORT = process.env.PORT || 3000;
+db.sync().then(() => {
+  app.listen(PORT, () => console.log("YEGO Online"));
+});
