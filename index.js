@@ -11,13 +11,12 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   logging: false
 });
 
-// --- MODELO CON MAPEOS EXACTOS ---
-// Mapeamos los nombres de la DB (Mayúsculas) a nombres fáciles en el código
+// --- MODELO CON MAPEOS EXACTOS A MAYÚSCULAS ---
 const Carga = db.define('Carga', {
   id: { 
     type: DataTypes.INTEGER, 
     primaryKey: true, 
-    field: 'ID' // Soluciona el error de image_a08e7b
+    field: 'ID' // Corrige el error crítico de image_a08e7b
   },
   placa: { type: DataTypes.STRING, field: 'PLACA' },
   cont: { type: DataTypes.STRING, field: 'CONTENEDOR' },
@@ -52,9 +51,9 @@ const css = `<style>
 
 app.get('/', async (req, res) => {
   try {
+    // Sincronizamos con los datos reales mapeados
     const despachos = await Carga.findAll({ include: [Finanza], order: [['id', 'DESC']] });
     
-    // Sincronización de registros financieros
     for (let d of despachos) {
       if (!d.Finanza) await Finanza.create({ cargaId: d.id });
     }
@@ -89,16 +88,16 @@ app.get('/', async (req, res) => {
   }
 });
 
+// Ruta para editar valores contables
 app.get('/editar/:id', async (req, res) => {
     const f = await Finanza.findOne({ where: { cargaId: req.params.id }, include: [Carga] });
     res.send(`<html><head>${css}</head><body><div class="container" style="max-width:400px; margin-top:50px;">
       <div style="background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
         <h2 style="color:#3b82f6">Liquidar #${f.cargaId}</h2>
-        <p style="color:#94a3b8">Cliente: ${f.Carga.empresa}</p>
+        <p style="color:#94a3b8">Empresa: ${f.Carga.empresa}</p>
         <form action="/guardar/${f.cargaId}" method="POST">
           <label style="font-size:11px; color:#94a3b8">VALOR FLETE</label><br>
           <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;">
-          <label style="font-size:11px; color:#94a3b8">ESTADO DE PAGO</label><br>
           <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155;border-radius:6px;">
             <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
             <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
