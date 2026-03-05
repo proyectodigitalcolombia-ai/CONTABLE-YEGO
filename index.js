@@ -97,7 +97,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">
             <select 
-              onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
+              onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar}, '${c.orig}')" 
               style="${selStyle}">
               <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
               <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
@@ -111,15 +111,15 @@ app.get('/', async (req, res) => {
           </td>
           <td id="valor-ant-${c.id}" style="${tdStyle}">$${Number(f.valor_anticipo || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">
-  <input 
-    type="text" 
-    id="input-sobre-${c.id}"
-    value="$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}" 
-    style="background: #0f172a; color: #fbbf24; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
-    onfocus="this.type='number'; this.value='${f.sobre_anticipo || 0}'"
-    onblur="formatToMoney(${c.id}, this)"
-  >
-</td>
+            <input 
+                type="text" 
+                id="input-sobre-${c.id}"
+                value="$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}" 
+                style="background: #0f172a; color: #fbbf24; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
+                onfocus="this.type='number'; this.value='${f.sobre_anticipo || 0}'"
+                onblur="formatToMoney(${c.id}, this)"
+            >
+            </td>
           <td style="${tdStyle}">
             <select 
                 onchange="actualizarEstadoFinanciero(${c.id}, this.value)"
@@ -164,37 +164,35 @@ app.get('/', async (req, res) => {
             </div>
           </td>
           <td id="td-descuento-${c.id}" style="${tdStyle}">
-  <input 
-    type="text" 
-    id="input-desc-${c.id}"
-    value="$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}" 
-    style="background: #0f172a; color: #ef4444; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
-    onfocus="this.type='number'; this.value='${f.valor_descuento || 0}'"
-    onblur="formatToMoneyDesc(${c.id}, this)"
-  >
-  <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
-</td>
-          <<td style="${tdStyle}">
-  <input 
-    type="date" 
-    value="${f.fecha_cump_docs || ''}" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
-    onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
-  >
-</td>
-
-// Celda para FECHA DE LEGALIZACIÓN
-<td style="${tdStyle}">
-  <input 
-    type="date" 
-    value="${f.fecha_legalizacion || ''}" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
-    onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
-  >
-</td>
-          <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+            <input 
+                type="text" 
+                id="input-desc-${c.id}"
+                value="$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}" 
+                style="background: #0f172a; color: #ef4444; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
+                onfocus="this.type='number'; this.value='${f.valor_descuento || 0}'"
+                onblur="formatToMoneyDesc(${c.id}, this)"
+            >
+            <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
+            </td>
+          <td style="${tdStyle}">
+            <input 
+                type="date" 
+                value="${f.fecha_cump_docs || ''}" 
+                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
+                onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
+            >
+            </td>
+            <td style="${tdStyle}">
+            <input 
+                type="date" 
+                value="${f.fecha_legalizacion || ''}" 
+                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
+                onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
+            >
+            </td>
+          <td id="retefuente-${c.id}" style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
+          <td id="reteica-${c.id}" style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
+          <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
           <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
@@ -247,22 +245,6 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
-          async function gestionarNovedad(cargaId, valor) {
-            const divObs = document.getElementById("obs-" + cargaId);
-            if(valor === "SI") {
-              divObs.contentEditable = "true";
-              divObs.innerText = "";
-              divObs.style.border = "1px solid #3b82f6";
-              divObs.focus();
-            } else {
-              divObs.contentEditable = "false";
-              divObs.innerText = "---";
-              divObs.style.border = "none";
-              await actualizarEntrega(cargaId, 'obs_novedad', '');
-            }
-            await actualizarEntrega(cargaId, 'presenta_novedades', valor);
-          }
-
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
               await fetch('/actualizar-entrega', {
@@ -273,7 +255,7 @@ app.get('/', async (req, res) => {
             } catch (e) { console.error("Error al actualizar entrega", e); }
           }
 
-          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
+          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
             let porcentaje = 0;
             if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
             else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
@@ -291,16 +273,18 @@ app.get('/', async (req, res) => {
                     body: JSON.stringify({ 
                         cargaId, 
                         tipo_anticipo: valorSeleccionado, 
-                        valor_anticipo: valorCalculado 
+                        valor_anticipo: valorCalculado,
+                        flete: flete,
+                        origen: origen
                     })
                 });
 
                 if (response.ok) {
-                    const celdaValor = document.getElementById("valor-ant-" + cargaId);
-                    if (celdaValor) {
-                        celdaValor.innerText = "$" + valorCalculado.toLocaleString('es-CO');
-                        celdaValor.style.color = "#10b981"; 
-                    }
+                    const data = await response.json();
+                    document.getElementById("valor-ant-" + cargaId).innerText = "$" + valorCalculado.toLocaleString('es-CO');
+                    document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
+                    document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
+                    document.getElementById("saldo-" + cargaId).innerText = "$" + data.saldo.toLocaleString('es-CO');
                 }
             } catch (error) { 
                 console.error("Error al actualizar anticipo:", error); 
@@ -313,14 +297,12 @@ app.get('/', async (req, res) => {
                 const ahora = new Date();
                 fechaActualizada = ahora.toISOString().split('T')[0];
             }
-
             try {
                 const response = await fetch('/actualizar-estado-financiero', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, estado: nuevoEstado, fechaPago: fechaActualizada })
                 });
-
                 if (response.ok) {
                     const celdaFecha = document.getElementById("fecha-pago-" + id);
                     if (celdaFecha) {
@@ -343,7 +325,6 @@ app.get('/', async (req, res) => {
             if (nuevoTipo !== "") {
               fechaActualizada = new Date().toISOString().split('T')[0];
             }
-
             try {
               const response = await fetch('/actualizar-tipo-cumplido', {
                 method: 'POST',
@@ -354,7 +335,6 @@ app.get('/', async (req, res) => {
                   fecha_virtual: fechaActualizada 
                 })
               });
-
               if (response.ok) {
                 const celdaFecha = document.getElementById("fecha-virtual-" + cargaId);
                 if (celdaFecha) {
@@ -366,65 +346,43 @@ app.get('/', async (req, res) => {
               console.error("Error al guardar tipo cumplido", e); 
             }
           }
-       async function formatToMoney(cargaId, input) {
-  let numValue = input.value || 0;
-  // Cambia el tipo a texto para mostrar el símbolo $
-  input.type = 'text';
-  input.value = '$' + Number(numValue).toLocaleString('es-CO');
-  
-  // Ejecuta tu función de actualización existente
-  await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
-}
-        async function gestionarNovedad(cargaId, valor) {
-  const divObs = document.getElementById("obs-" + cargaId);
-  const inputDesc = document.getElementById("input-desc-" + cargaId);
-  const spanDesc = document.getElementById("span-desc-" + cargaId);
 
-  if(valor === "SI") {
-    // Habilitar Observación
-    divObs.contentEditable = "true";
-    divObs.innerText = "";
-    divObs.style.border = "1px solid #3b82f6";
-    
-    // Habilitar Descuento
-    inputDesc.style.display = "inline-block";
-    spanDesc.style.display = "none";
-  } else {
-    // Deshabilitar Observación
-    divObs.contentEditable = "false";
-    divObs.innerText = "---";
-    divObs.style.border = "none";
-    
-    // Deshabilitar Descuento y resetear a 0
-    inputDesc.style.display = "none";
-    spanDesc.style.display = "inline-block";
-    inputDesc.value = "$0";
-    await actualizarEntrega(cargaId, 'valor_descuento', 0);
-    await actualizarEntrega(cargaId, 'obs_novedad', '');
-  }
-  await actualizarEntrega(cargaId, 'presenta_novedades', valor);
-}
-async function formatToMoneyDesc(cargaId, input) {
-  let numValue = input.value || 0;
-  
-  // Forzamos que sea texto para mostrar el formato
-  input.type = 'text';
-  input.value = '$' + Number(numValue).toLocaleString('es-CO');
-  
-  // Guardamos el número puro en la base de datos
-  await actualizarEntrega(cargaId, 'valor_descuento', 0);
-}
-        async function actualizarEntrega(cargaId, campo, valor) {
-  try {
-    await fetch('/actualizar-entrega', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cargaId, campo, valor })
-    });
-  } catch (e) { 
-    console.error("Error al guardar la fecha:", e); 
-  }
-}
+        async function formatToMoney(cargaId, input) {
+            let numValue = input.value || 0;
+            input.type = 'text';
+            input.value = '$' + Number(numValue).toLocaleString('es-CO');
+            await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
+        }
+
+        async function gestionarNovedad(cargaId, valor) {
+            const divObs = document.getElementById("obs-" + cargaId);
+            const inputDesc = document.getElementById("input-desc-" + cargaId);
+            const spanDesc = document.getElementById("span-desc-" + cargaId);
+            if(valor === "SI") {
+                divObs.contentEditable = "true";
+                divObs.innerText = "";
+                divObs.style.border = "1px solid #3b82f6";
+                inputDesc.style.display = "inline-block";
+                spanDesc.style.display = "none";
+            } else {
+                divObs.contentEditable = "false";
+                divObs.innerText = "---";
+                divObs.style.border = "none";
+                inputDesc.style.display = "none";
+                spanDesc.style.display = "inline-block";
+                inputDesc.value = "$0";
+                await actualizarEntrega(cargaId, 'valor_descuento', 0);
+                await actualizarEntrega(cargaId, 'obs_novedad', '');
+            }
+            await actualizarEntrega(cargaId, 'presenta_novedades', valor);
+        }
+
+        async function formatToMoneyDesc(cargaId, input) {
+            let numValue = input.value || 0;
+            input.type = 'text';
+            input.value = '$' + Number(numValue).toLocaleString('es-CO');
+            await actualizarEntrega(cargaId, 'valor_descuento', numValue);
+        }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
@@ -452,9 +410,29 @@ app.post('/actualizar-estado-financiero', async (req, res) => {
 
 app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
-    const { cargaId, tipo_anticipo, valor_anticipo } = req.body;
-    await Finanza.upsert({ cargaId, tipo_anticipo, valor_anticipo });
-    res.sendStatus(200);
+    const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
+    
+    // CALCULO AUTOMATICO RETENCIONES
+    const retefuente = Math.round(flete * 0.01);
+    let tarifaIca = 0.01; // 1% General
+    if (origen && origen.toUpperCase().includes("BUENAVENTURA")) tarifaIca = 0.004; // 0.4%
+    const reteica = Math.round(flete * tarifaIca);
+    
+    const f = await Finanza.findOne({ where: { cargaId } });
+    const sobre = Number(f?.sobre_anticipo || 0);
+    const desc = Number(f?.valor_descuento || 0);
+    const saldo = flete - retefuente - reteica - valor_anticipo - sobre - desc;
+
+    await Finanza.upsert({ 
+        cargaId, 
+        tipo_anticipo, 
+        valor_anticipo,
+        retefuente,
+        reteica,
+        saldo_a_pagar: saldo
+    });
+
+    res.json({ retefuente, reteica, saldo });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -469,9 +447,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
       fecha_cump_virtual: fecha_virtual 
     });
     res.sendStatus(200);
-  } catch (error) { 
-    res.status(500).send(error.message); 
-  }
+  } catch (error) { res.status(500).send(error.message); }
 });
 
 app.get('/editar/:id', async (req, res) => {
@@ -496,6 +472,7 @@ app.get('/editar/:id', async (req, res) => {
           <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          
           <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
              <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS</p>
              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
@@ -527,53 +504,31 @@ app.get('/editar/:id', async (req, res) => {
                     <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
-                <label>FACTURAS 
-                  <select name="ent_facturas" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_facturas === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_facturas === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_facturas === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>TIRILLA VACÍO 
-                  <select name="ent_tirilla_vacio" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_tirilla_vacio === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_tirilla_vacio === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_tirilla_vacio === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>TIQ. CARGUE 
-                  <select name="ent_tiq_cargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_tiq_cargue === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_tiq_cargue === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_tiq_cargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>TIQ. DESCARGUE 
-                  <select name="ent_tiq_descargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_tiq_descargue === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_tiq_descargue === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_tiq_descargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
              </div>
           </div>
-          <div><label>RETEFUENTE</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>RETEFUENTE (Auto)</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>RETEICA (Auto)</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981; font-weight:bold;"></div>
-          <div><label>DÍAS SIN PAGAR</label><input type="number" name="dias_sin_pagar" value="${f.dias_sin_pagar}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>DÍAS SIN CUMPLIR</label><input type="number" name="dias_sin_cumplir" value="${f.dias_sin_cumplir}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS CONTABLES</button>
+          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR Y LIQUIDAR</button>
         </form>
-        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado principal</a></p>
       </div>
     </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  await Finanza.update(req.body, { where: { cargaId: req.params.id } });
-  res.redirect('/');
+  try {
+    const flete = Number(req.body.v_flete);
+    const retef = Number(req.body.retefuente);
+    const retei = Number(req.body.reteica);
+    const ant = Number(req.body.valor_anticipo);
+    const sobre = Number(req.body.sobre_anticipo);
+    const desc = Number(req.body.valor_descuento);
+    
+    const saldo = flete - retef - retei - ant - sobre - desc;
+    
+    await Finanza.update({ ...req.body, saldo_a_pagar: saldo }, { where: { cargaId: req.params.id } });
+    res.redirect('/');
+  } catch (e) { res.status(500).send(e.message); }
 });
 
-const PORT = process.env.PORT || 3000;
-db.sync({ alter: true }).then(() => app.listen(PORT, () => console.log('🚀 YEGO GRID FULL NAMES')));
+app.listen(process.env.PORT || 3000);
