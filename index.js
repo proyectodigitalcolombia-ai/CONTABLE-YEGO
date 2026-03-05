@@ -177,32 +177,44 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
-          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
-            let porcentaje = 0;
-            if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-            else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
-            else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+          async function actualizarEstadoFinanciero(id, nuevoEstado) {
+    let fechaActualizada = null;
+    if (nuevoEstado === "TRANSFERIDO") {
+        const ahora = new Date();
+        // Formato: DD/MM/YYYY HH:mm (Ej: 05/03/2026 14:30)
+        fechaActualizada = ahora.toLocaleString('es-CO', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    }
 
-            const valorCalculado = Math.round(flete * porcentaje);
+    try {
+        const response = await fetch('/actualizar-estado-financiero', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                id, 
+                estado: nuevoEstado, 
+                fechaPago: fechaActualizada 
+            })
+        });
 
-            try {
-              const response = await fetch('/actualizar-anticipo-directo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  cargaId, 
-                  tipo_anticipo: valorSeleccionado,
-                  valor_anticipo: valorCalculado 
-                })
-              });
-
-              if (response.ok) {
-                location.reload();
-              }
-            } catch (error) {
-              alert("Error al actualizar el cálculo");
+        if (response.ok) {
+            const celdaFecha = document.getElementById("fecha-pago-" + id);
+            if (celdaFecha) {
+                celdaFecha.innerText = fechaActualizada || '---';
+                celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
+                celdaFecha.style.fontWeight = nuevoEstado === "TRANSFERIDO" ? "bold" : "normal";
             }
-          }
+        }
+    } catch (error) { 
+        console.error("Error al actualizar:", error); 
+    }
+}
 
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
