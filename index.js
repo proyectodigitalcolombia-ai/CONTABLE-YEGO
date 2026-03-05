@@ -11,7 +11,7 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
-// MODELO YEGO_FINANZAS
+// MODELO FINANZAS - SIN ALTERAR ESTRUCTURA
 const Finanza = db.define('Finanza', {
   cargaId: { type: DataTypes.INTEGER, unique: true },
   v_flete: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
@@ -45,6 +45,13 @@ const Finanza = db.define('Finanza', {
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas', timestamps: false });
 
+// FUNCIÓN DE EXTRACCIÓN INFALIBLE
+const getV = (obj, key) => {
+  if (!obj) return null;
+  const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+  return foundKey ? obj[foundKey] : null;
+};
+
 const statusCheck = (val) => {
   const v = String(val || '').trim().toUpperCase();
   if (v === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
@@ -54,22 +61,8 @@ const statusCheck = (val) => {
 
 app.get('/', async (req, res) => {
   try {
-    // CAMBIO CLAVE: Alias explícitos para forzar la lectura de columnas
-    // Aquí forzamos a que "f_doc" sea reconocida y los valores financieros también
     const sql = `
-      SELECT 
-        c.id AS cid, 
-        c."f_doc" AS fecha_reg, 
-        c.oficina, c.orig, c.dest, c.cli, c.cont, c.ped, c.placa, c.muc, c.f_act, c.est_real,
-        f.v_flete AS flete_p, 
-        f.v_facturar AS flete_f, 
-        f.est_pago, f.tipo_anticipo, f.valor_anticipo, f.sobre_anticipo, f.estado_ant,
-        f.fecha_pago_ant, f.tipo_cumplido, f.fecha_cump_virtual, f.ent_manifiesto,
-        f.ent_remesa, f.ent_hoja_tiempos, f.ent_docs_cliente, f.ent_facturas,
-        f.ent_tirilla_vacio, f.ent_tiq_cargue, f.ent_tiq_descargue, f.presenta_novedades,
-        f.obs_novedad, f.valor_descuento, f.fecha_cump_docs, f.fecha_legalizacion,
-        f.retefuente, f.reteica, f.saldo_a_pagar AS saldo_p, f.estado_final,
-        f.dias_sin_pagar, f.dias_sin_cumplir
+      SELECT c.*, f.*, c.id AS main_id 
       FROM "Cargas" c
       LEFT JOIN "Yego_Finanzas" f ON CAST(c.id AS TEXT) = CAST(f."cargaId" AS TEXT)
       WHERE c.placa IS NOT NULL AND c.placa != '' 
@@ -79,59 +72,60 @@ app.get('/', async (req, res) => {
 
     let totalPendiente = 0;
     let filas = datos.map(c => {
-      // Usamos los nuevos alias definidos en el SQL
-      const fletePagar = parseFloat(c.flete_p || 0);
-      const fleteFacturar = parseFloat(c.flete_f || 0);
-      const saldoFinal = parseFloat(c.saldo_p || 0);
+      // Extraemos valores usando la función que ignora mayúsculas/minúsculas
+      const fleteP = parseFloat(getV(c, 'v_flete') || 0);
+      const fleteF = parseFloat(getV(c, 'v_facturar') || 0);
+      const f_reg = getV(c, 'f_doc') || getV(c, 'fecha') || '---';
+      const est_p = getV(c, 'est_pago') || 'PENDIENTE';
       
-      if((c.est_pago || 'PENDIENTE') === 'PENDIENTE') totalPendiente += fletePagar;
+      if(est_p === 'PENDIENTE') totalPendiente += fleteP;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
-        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
-          <td style="${tdStyle} color: #94a3b8;">#${c.cid}</td>
-          <td style="${tdStyle}">${c.fecha_reg || '---'}</td>
-          <td style="${tdStyle}">${c.oficina || '---'}</td>
-          <td style="${tdStyle}">${c.orig || '---'}</td>
-          <td style="${tdStyle}">${c.dest || '---'}</td>
-          <td style="${tdStyle}">${c.cli || '---'}</td>
-          <td style="${tdStyle}">${c.cont || '---'}</td>
-          <td style="${tdStyle}">${c.ped || '---'}</td>
-          <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
-          <td style="${tdStyle}">${c.muc || '---'}</td>
-          <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${c.f_act || '---'}</td>
-          <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
-          <td style="${tdStyle}">${c.tipo_anticipo || '---'}</td>
-          <td style="${tdStyle}">$${parseFloat(c.valor_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${parseFloat(c.sobre_anticipo || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${c.estado_ant || '---'}</td>
-          <td style="${tdStyle}">${c.fecha_pago_ant || '---'}</td>
-          <td style="${tdStyle}">${c.tipo_cumplido || '---'}</td>
-          <td style="${tdStyle}">${c.fecha_cump_virtual || '---'}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_manifiesto)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_remesa)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_hoja_tiempos)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_docs_cliente)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_facturas)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tirilla_vacio)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tiq_cargue)}</td>
-          <td style="${tdStyle}">${statusCheck(c.ent_tiq_descargue)}</td>
-          <td style="${tdStyle}">${statusCheck(c.presenta_novedades)}</td>
-          <td style="${tdStyle}">${c.obs_novedad || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">$${parseFloat(c.valor_descuento || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${c.fecha_cump_docs || '---'}</td>
-          <td style="${tdStyle}">${c.fecha_legalizacion || '---'}</td>
-          <td style="${tdStyle}">$${parseFloat(c.retefuente || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">$${parseFloat(c.reteica || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${saldoFinal.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${c.estado_final || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">${c.dias_sin_pagar || 0}</td>
-          <td style="${tdStyle} color: #3b82f6;">${c.dias_sin_cumplir || 0}</td>
+        <tr class="fila-carga" data-placa="${(getV(c, 'placa') || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
+          <td style="${tdStyle} color: #94a3b8;">#${getV(c, 'main_id')}</td>
+          <td style="${tdStyle}">${f_reg}</td>
+          <td style="${tdStyle}">${getV(c, 'oficina') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'orig') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'dest') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'cli') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'cont') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'ped') || '---'}</td>
+          <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${getV(c, 'placa')}</td>
+          <td style="${tdStyle}">${getV(c, 'muc') || '---'}</td>
+          <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fleteP.toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #3b82f6;">$${fleteF.toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${getV(c, 'f_act') || '---'}</td>
+          <td style="${tdStyle} color: #fbbf24;">${getV(c, 'est_real') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'tipo_anticipo') || '---'}</td>
+          <td style="${tdStyle}">$${parseFloat(getV(c, 'valor_anticipo') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(getV(c, 'sobre_anticipo') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${getV(c, 'estado_ant') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'fecha_pago_ant') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'tipo_cumplido') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'fecha_cump_virtual') || '---'}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_manifiesto'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_remesa'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_hoja_tiempos'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_docs_cliente'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_facturas'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_tirilla_vacio'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_tiq_cargue'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'ent_tiq_descargue'))}</td>
+          <td style="${tdStyle}">${statusCheck(getV(c, 'presenta_novedades'))}</td>
+          <td style="${tdStyle}">${getV(c, 'obs_novedad') || '---'}</td>
+          <td style="${tdStyle} color: #ef4444;">$${parseFloat(getV(c, 'valor_descuento') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${getV(c, 'fecha_cump_docs') || '---'}</td>
+          <td style="${tdStyle}">${getV(c, 'fecha_legalizacion') || '---'}</td>
+          <td style="${tdStyle}">$${parseFloat(getV(c, 'retefuente') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">$${parseFloat(getV(c, 'reteica') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${parseFloat(getV(c, 'saldo_a_pagar') || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle}">${getV(c, 'estado_final') || '---'}</td>
+          <td style="${tdStyle} color: #ef4444;">${getV(c, 'dias_sin_pagar') || 0}</td>
+          <td style="${tdStyle} color: #3b82f6;">${getV(c, 'dias_sin_cumplir') || 0}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.cid}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <a href="/editar/${getV(c, 'main_id')}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
         </tr>`;
     }).join('');
@@ -186,7 +180,7 @@ app.get('/', async (req, res) => {
           });
         </script>
       </body>`);
-  } catch (err) { res.status(500).send("Error crítico: " + err.message); }
+  } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
 app.get('/editar/:id', async (req, res) => {
@@ -194,25 +188,23 @@ app.get('/editar/:id', async (req, res) => {
   res.send(`
     <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
       <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN CARGA #${req.params.id}</h2>
+        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${req.params.id}</h2>
         <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
           <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
           <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
           <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
           <div><label>SALDO FINAL A PAGAR</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #10b981;"></div>
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">ACTUALIZAR DATOS</button>
+          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">ACTUALIZAR DATOS</button>
         </form>
-        <p style="text-align:center;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver</a></p>
+        <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#94a3b8; text-decoration:none;">← Volver al listado</a></p>
       </div>
     </body>`);
 });
 
 app.post('/guardar/:id', async (req, res) => {
-  try {
-    await Finanza.upsert({ cargaId: req.params.id, ...req.body });
-    res.redirect('/');
-  } catch (error) { res.status(500).send("Error: " + error.message); }
+  await Finanza.upsert({ cargaId: req.params.id, ...req.body });
+  res.redirect('/');
 });
 
 const PORT = process.env.PORT || 3000;
-db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO SISTEMA CON ALIAS')));
+db.sync().then(() => app.listen(PORT, () => console.log('🚀 YEGO INTEGRADO ACTIVO')));
