@@ -63,7 +63,6 @@ app.get('/', async (req, res) => {
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;`;
 
-      // Lógica para habilitar/deshabilitar observación
       const tieneNovedad = f.presenta_novedades === 'SI';
       const obsEditableStyle = tieneNovedad 
         ? `background: #1e293b; color: white; border: 1px solid #3b82f6; cursor: text;` 
@@ -86,7 +85,10 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">
-           <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
+           <select 
+              onchange="actualizarAnticipoRapido(${c.id}, this.value, ${fletePagar})" 
+              style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
+              <option value="" ${!f.tipo_anticipo ? 'selected' : ''}>---</option>
               <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>0%</option>
               <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>50%</option>
               <option value="Anticipo parcial (60%)" ${f.tipo_anticipo === 'Anticipo parcial (60%)' ? 'selected' : ''}>60%</option>
@@ -223,6 +225,8 @@ app.get('/', async (req, res) => {
               let porcentaje = 0;
               if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
               else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+              else if (valorSeleccionado.includes("TOTAL")) porcentaje = 1.0;
+              
               const valorCalculado = Math.round(flete * porcentaje);
               try {
                   await fetch('/actualizar-anticipo-directo', {
