@@ -11,16 +11,17 @@ const db = new Sequelize(process.env.DATABASE_URL, {
   logging: false
 });
 
-// --- MODELO CON NOMBRES DE COLUMNA EXACTOS ---
+// --- MODELO CON MAPEOS EXACTOS ---
+// Mapeamos los nombres de la DB (Mayúsculas) a nombres fáciles en el código
 const Carga = db.define('Carga', {
   id: { 
     type: DataTypes.INTEGER, 
     primaryKey: true, 
-    field: 'ID' // Solución definitiva al error de las imágenes image_a08e7b y image_a0875b
+    field: 'ID' // Soluciona el error de image_a08e7b
   },
   placa: { type: DataTypes.STRING, field: 'PLACA' },
   cont: { type: DataTypes.STRING, field: 'CONTENEDOR' },
-  empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, 
+  empresa: { type: DataTypes.STRING, field: 'EMPRESA' }, // Soluciona el N/A de image_a092d7
   comercial: { type: DataTypes.STRING, field: 'COMERCIAL' },
   puerto: { type: DataTypes.STRING, field: 'PUERTO' }
 }, { 
@@ -44,7 +45,7 @@ const css = `<style>
   th,td{padding:12px;border-bottom:1px solid #334155; text-align:left;}
   th{background:#334155;color:#94a3b8;text-transform:uppercase; font-size:10px;}
   .btn{background:#2563eb;color:white;padding:6px 12px;text-decoration:none;border-radius:6px;font-size:11px;font-weight:bold;display:inline-block;}
-  .card{background:#1e293b;padding:15px 25px;border-radius:12px;border-top:4px solid #3b82f6;display:inline-block;}
+  .card{background:#1e293b;padding:15px 25px;border-radius:12px;border-top:4px solid #3b82f6;display:inline-block;margin-bottom:20px;}
   .status{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:bold;}
   .badge-client{color:#3b82f6; font-weight:bold; background:#0f172a; padding:4px 8px; border-radius:6px;}
 </style>`;
@@ -53,6 +54,7 @@ app.get('/', async (req, res) => {
   try {
     const despachos = await Carga.findAll({ include: [Finanza], order: [['id', 'DESC']] });
     
+    // Sincronización de registros financieros
     for (let d of despachos) {
       if (!d.Finanza) await Finanza.create({ cargaId: d.id });
     }
@@ -75,14 +77,16 @@ app.get('/', async (req, res) => {
     }).join('');
 
     res.send(`<html><head><title>YEGO MASTER</title>${css}</head><body><div class="container">
-      <h1 style="color:#3b82f6">YEGO 💰 Finanzas <small style="color:#64748b; font-size:12px">| Control Total</small></h1>
-      <div class="card"><h3>Total Cartera</h3><p style="font-size:24px; color:#34d399; margin:0;">$ ${total.toLocaleString()}</p></div>
+      <h1 style="color:#3b82f6">YEGO 💰 Finanzas</h1>
+      <div class="card"><h3>Cartera Total</h3><p style="font-size:24px; color:#34d399; margin:0;">$ ${total.toLocaleString()}</p></div>
       <table>
-        <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>EMPRESA</th><th>COMERCIAL</th><th>PUERTO</th><th>VALOR FLETE</th><th>PAGO</th><th>ACCIÓN</th></tr></thead>
+        <thead><tr><th>ID</th><th>PLACA</th><th>CONTENEDOR</th><th>EMPRESA</th><th>COMERCIAL</th><th>PUERTO</th><th>VALOR FLETE</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div></body></html>`);
-  } catch (err) { res.send(`<h2>Error de Sincronización</h2><p>${err.message}</p>`); }
+  } catch (err) { 
+    res.send(`<h2>Error de Sincronización</h2><p>Detalle técnico: ${err.message}</p>`); 
+  }
 });
 
 app.get('/editar/:id', async (req, res) => {
@@ -90,10 +94,11 @@ app.get('/editar/:id', async (req, res) => {
     res.send(`<html><head>${css}</head><body><div class="container" style="max-width:400px; margin-top:50px;">
       <div style="background:#1e293b;padding:30px;border-radius:15px;border:1px solid #3b82f6">
         <h2 style="color:#3b82f6">Liquidar #${f.cargaId}</h2>
-        <p style="color:#94a3b8">Empresa: ${f.Carga.empresa}</p>
+        <p style="color:#94a3b8">Cliente: ${f.Carga.empresa}</p>
         <form action="/guardar/${f.cargaId}" method="POST">
           <label style="font-size:11px; color:#94a3b8">VALOR FLETE</label><br>
           <input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:#34d399;border:1px solid #334155;border-radius:6px;font-size:18px;">
+          <label style="font-size:11px; color:#94a3b8">ESTADO DE PAGO</label><br>
           <select name="est_pago" style="width:100%;padding:12px;margin:10px 0;background:#0f172a;color:white;border:1px solid #334155;border-radius:6px;">
             <option ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
             <option ${f.est_pago === 'PAGADO' ? 'selected' : ''}>PAGADO</option>
