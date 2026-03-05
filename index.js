@@ -174,8 +174,24 @@ app.get('/', async (req, res) => {
   >
   <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
 </td>
-          <td style="${tdStyle}">${f.fecha_cump_docs || '---'}</td>
-          <td style="${tdStyle}">${f.fecha_legalizacion || '---'}</td>
+          <td style="${tdStyle}">
+  <input 
+    type="date" 
+    value="${f.fecha_cump_docs || ''}" 
+    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer;"
+    onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
+  >
+</td>
+
+// Celda para FECHA DE LEGALIZACIÓN
+<td style="${tdStyle}">
+  <input 
+    type="date" 
+    value="${f.fecha_legalizacion || ''}" 
+    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer;"
+    onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
+  >
+</td>
           <td style="${tdStyle}">$${Number(f.retefuente || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">$${Number(f.reteica || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
@@ -397,6 +413,18 @@ async function formatToMoneyDesc(cargaId, input) {
   
   // Guardamos el número puro en la base de datos
   await actualizarEntrega(cargaId, 'valor_descuento', 0);
+}
+        async function actualizarEntrega(cargaId, campo, valor) {
+  try {
+    await fetch('/actualizar-entrega', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cargaId, campo, valor })
+    });
+    console.log(`Campo ${campo} actualizado a: ${valor}`);
+  } catch (e) { 
+    console.error("Error al actualizar campo:", e); 
+  }
 }
         </script>
       </body>`);
