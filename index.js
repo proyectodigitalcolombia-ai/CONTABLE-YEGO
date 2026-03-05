@@ -110,9 +110,12 @@ app.get('/', async (req, res) => {
             </select>
           </td>
           <td style="${tdStyle}">
-  <select 
-    onchange="actualizarTipoCumplido(${c.id}, this.value)" 
-    style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer; width: 100%;">
+  <td id="fecha-pago-${c.id}" style="${tdStyle}">
+  ${f.fecha_pago_ant || '---'}
+</td>
+
+<td style="${tdStyle}">
+  <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;">
     <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
     <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
     <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
@@ -250,6 +253,15 @@ app.get('/', async (req, res) => {
             } catch (error) { console.error(error); }
           }
         </script>
+        async function actualizarTipoCumplido(cargaId, nuevoTipo) {
+  try {
+    await fetch('/actualizar-tipo-cumplido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cargaId, tipo_cumplido: nuevoTipo })
+    });
+  } catch (e) { console.error("Error al guardar tipo cumplido", e); }
+}
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
