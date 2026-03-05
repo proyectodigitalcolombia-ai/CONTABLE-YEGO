@@ -61,16 +61,18 @@ app.get('/', async (req, res) => {
     let totalPendiente = 0;
     let filas = cargas.map(c => {
       const f = finanzas.find(fin => fin.cargaId === c.id) || {};
-      const fletePagar = Number(f.v_flete) > 0 ? Number(f.v_flete) : Number(c.flete_pagar || c.v_flete || 0);
+      const fletePagar = Number(f.v_flete) > 0 ? Number(f.v_flete) : Number(c.f_p || 0);
+      const fleteFacturar = Number(f.v_facturar) > 0 ? Number(f.v_facturar) : Number(c.f_f || 0);
+      const fechaRegistro = c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-CO') : '---';
       const estadoContable = f.est_pago || "PENDIENTE";
-      if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
+            if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
 
       return `
         <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
           <td style="${tdStyle} color: #94a3b8;">#${c.id}</td>
-          <td style="${tdStyle}">${c.f_doc || '---'}</td>
+          <td style="${tdStyle}">${fechaRegistro}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
           <td style="${tdStyle}">${c.orig || '---'}</td>
           <td style="${tdStyle}">${c.dest || '---'}</td>
@@ -80,7 +82,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
           <td style="${tdStyle}">${c.muc || '---'}</td>
           <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${Number(f.v_facturar || 0).toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">${f.tipo_anticipo || '---'}</td>
