@@ -169,6 +169,37 @@ app.get('/', async (req, res) => {
           </table>
         </div>
         <script>
+        async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete) {
+    // 1. Extraer el porcentaje del texto (ej: "70%")
+    let porcentaje = 0;
+    if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
+    else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
+    else if (seleccion.includes("50%")) porcentaje = 0.50;
+
+    // 2. Calcular el valor
+    const valorCalculado = Math.round(flete * porcentaje);
+
+    // 3. Enviar a la base de datos para que quede guardado
+    try {
+        const response = await fetch('/actualizar-anticipo-directo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                cargaId, 
+                tipo_anticipo: valorSeleccionado,
+                valor_anticipo: valorCalculado 
+            })
+        });
+
+        if (response.ok) {
+            // Refrescamos para ver el nuevo valor en la celda de "VALOR ANTICIPO"
+            location.reload();
+        }
+    } catch (error) {
+        alert("Error al actualizar el cálculo");
+    }
+}
+</script>
           document.getElementById('buscador').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.fila-carga').forEach(fila => {
