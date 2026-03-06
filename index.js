@@ -82,22 +82,44 @@ app.get('/', async (req, res) => {
 
       // Cálculo de días sin cumplir
       let diasSinCumplirCalc = 0;
-      let displayDiasSinCumplir = '0 días';
-      let colorDiasSinCumplir = '#3b82f6';
+let displayDiasSinCumplir = '0 días';
+let colorDiasSinCumplir = '#3b82f6';
 
-      if (f.tipo_cumplido && f.tipo_cumplido !== "") {
-          displayDiasSinCumplir = 'VIAJE CUMPLIDO';
-          colorDiasSinCumplir = '#10b981';
-      } else if (c.f_act) {
-          const fActualizacion = new Date(c.f_act);
-          const hoy = new Date();
-          hoy.setHours(0,0,0,0);
-          fActualizacion.setHours(0,0,0,0);
-          const diff = hoy - fActualizacion;
-          diasSinCumplirCalc = Math.floor(diff / (1000 * 60 * 60 * 24));
-          if (diasSinCumplirCalc < 0) diasSinCumplirCalc = 0;
-          displayDiasSinCumplir = diasSinCumplirCalc + " días";
-      }
+if (f.tipo_cumplido && f.tipo_cumplido !== "") {
+    displayDiasSinCumplir = 'VIAJE CUMPLIDO';
+    colorDiasSinCumplir = '#10b981';
+} else if (c.f_act) {
+    try {
+        // 1. Limpiamos el formato: cambiamos "DD-MM-YYYY" a "YYYY/MM/DD" que es más seguro
+        // y manejamos el posible error del "24:00:00"
+        let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
+        
+        // Si la hora es 24:xx:xx, la forzamos a 00:xx:xx para que no rompa
+        if (fechaString.includes(' 24:')) {
+            fechaString = fechaString.replace(' 24:', ' 00:');
+        }
+
+        const fActualizacion = new Date(fechaString);
+        const hoy = new Date();
+
+        // Validamos si después de la limpieza la fecha es válida
+        if (!isNaN(fActualizacion.getTime())) {
+            hoy.setHours(0, 0, 0, 0);
+            fActualizacion.setHours(0, 0, 0, 0);
+            
+            const diff = hoy - fActualizacion;
+            const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
+        } else {
+            displayDiasSinCumplir = "0 días";
+        }
+    } catch (e) {
+        displayDiasSinCumplir = "0 días";
+    }
+} else {
+    displayDiasSinCumplir = "0 días";
+}
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
