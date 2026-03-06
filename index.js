@@ -571,23 +571,68 @@ app.get('/editar/:id', async (req, res) => {
                     <option value="NO APLICA" ${f.ent_remesa === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
-                <label>HOJA TIEMPOS
+                <label>HOJA TIEMPOS 
                   <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
                     <option value="SI" ${f.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
                     <option value="NO" ${f.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
                     <option value="NO APLICA" ${f.ent_hoja_tiempos === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
-                <label>FECHA LEGALIZACIÓN
-                  <input type="date" name="fecha_legalizacion" value="${f.fecha_legalizacion||''}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                <label>DOCS CLIENTE 
+                  <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>FACTURAS 
+                  <select name="ent_facturas" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_facturas === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_facturas === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_facturas === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIRILLA VACÍO 
+                  <select name="ent_tirilla_vacio" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tirilla_vacio === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tirilla_vacio === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tirilla_vacio === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIQ. CARGUE 
+                  <select name="ent_tiq_cargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tiq_cargue === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tiq_cargue === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tiq_cargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
+                </label>
+                <label>TIQ. DESCARGUE 
+                  <select name="ent_tiq_descargue" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${f.ent_tiq_descargue === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${f.ent_tiq_descargue === 'NO' ? 'selected' : ''}>NO</option>
+                    <option value="NO APLICA" ${f.ent_tiq_descargue === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
+                  </select>
                 </label>
              </div>
           </div>
+
+          <div><label>¿NOVEDADES?</label><select name="presenta_novedades" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            <option value="NO" ${f.presenta_novedades === 'NO' ? 'selected' : ''}>NO</option>
+            <option value="SI" ${f.presenta_novedades === 'SI' ? 'selected' : ''}>SI</option>
+          </select></div>
+          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
+          <div><label>RETEFUENTE (1%)</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>RETEICA</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
+          <div><label>SALDO FINAL</label><input type="number" name="saldo_a_pagar" value="${f.saldo_a_pagar}" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155; font-weight:bold;"></div>
+          <div><label>ESTADO FINAL</label><select name="estado_final" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            <option value="PENDIENTE" ${f.estado_final === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+            <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
+          </select></div>
+          <div style="grid-column: span 3;"><label>OBSERVACIONES</label><textarea name="obs_novedad" style="width:100%; height:60px; background:#0f172a; color:white; border:1px solid #334155;">${f.obs_novedad || ''}</textarea></div>
           
-          <div style="grid-column: span 3; text-align:center; padding-top:20px;">
-            <button type="submit" style="background:#3b82f6; color:white; padding:12px 40px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">GUARDAR LIQUIDACIÓN FINAL</button>
-            <br><br>
-            <a href="/" style="color:#94a3b8; text-decoration:none;">Volver al Listado</a>
+          <div style="grid-column: span 3; display: flex; gap: 10px; margin-top:10px;">
+            <button type="submit" style="flex:1; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR CAMBIOS</button>
+            <a href="/" style="flex:1; padding:15px; background:transparent; color:#94a3b8; border:1px solid #334155; border-radius:8px; text-decoration:none; text-align:center; font-weight:bold;">VOLVER</a>
           </div>
         </form>
       </div>
@@ -596,34 +641,12 @@ app.get('/editar/:id', async (req, res) => {
 
 app.post('/guardar/:id', async (req, res) => {
   try {
-    const cargaId = req.params.id;
-    const data = req.body;
-    
-    // Obtener origen de la carga para el ICA
-    const [c] = await db.query(`SELECT orig FROM "Cargas" WHERE id = ${cargaId}`, { type: QueryTypes.SELECT });
-    const flete = Number(data.v_flete || 0);
-    
-    // Cálculos Contables
-    const retefuente = Math.round(flete * 0.01);
-    let tarifaIca = 0.01;
-    const origen = (c?.orig || '').toUpperCase();
-    if (origen.includes("BUENAVENTURA")) tarifaIca = 0.004;
-    else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) tarifaIca = 0.007;
-    
-    const reteica = Math.round(flete * tarifaIca);
-    const saldo = flete - retefuente - reteica - Number(data.valor_anticipo) - Number(data.sobre_anticipo || 0) - Number(data.valor_descuento || 0);
-
-    await Finanza.upsert({
-      cargaId,
-      ...data,
-      retefuente,
-      reteica,
-      saldo_a_pagar: saldo
-    });
-    
+    await Finanza.update(req.body, { where: { cargaId: req.params.id } });
     res.redirect('/');
-  } catch (error) { res.status(500).send(error.message); }
+  } catch (error) {
+    res.status(500).send("Error al guardar: " + error.message);
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor Yego activo en puerto ${PORT}`));
