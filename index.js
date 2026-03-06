@@ -82,14 +82,21 @@ app.get('/', async (req, res) => {
 
       // Cálculo de días sin cumplir
       let diasSinCumplirCalc = 0;
-      if (f.fecha_cump_virtual) {
-          const fVirtual = new Date(f.fecha_cump_virtual);
+      let displayDiasSinCumplir = '0 días';
+      let colorDiasSinCumplir = '#3b82f6';
+
+      if (f.tipo_cumplido && f.tipo_cumplido !== "") {
+          displayDiasSinCumplir = 'VIAJE CUMPLIDO';
+          colorDiasSinCumplir = '#10b981';
+      } else if (c.f_act) {
+          const fActualizacion = new Date(c.f_act);
           const hoy = new Date();
           hoy.setHours(0,0,0,0);
-          fVirtual.setHours(0,0,0,0);
-          const diff = hoy - fVirtual;
+          fActualizacion.setHours(0,0,0,0);
+          const diff = hoy - fActualizacion;
           diasSinCumplirCalc = Math.floor(diff / (1000 * 60 * 60 * 24));
           if (diasSinCumplirCalc < 0) diasSinCumplirCalc = 0;
+          displayDiasSinCumplir = diasSinCumplirCalc + " días";
       }
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
@@ -238,7 +245,7 @@ app.get('/', async (req, res) => {
   </select>
 </td>
 <td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
-          <td id="dias-cumplir-${c.id}" style="${tdStyle} color: #3b82f6;">${diasSinCumplirCalc} días</td>
+          <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
           <td style="padding: 10px; text-align: center;">
             <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
           </td>
@@ -311,22 +318,6 @@ app.get('/', async (req, res) => {
             const elementoDestino = document.getElementById(celdaId);
             elementoDestino.innerText = resultado + " días";
             elementoDestino.style.color = colorDias(resultado);
-        }
-
-        function calcularDiasSinCumplirInterno(fechaStr, celdaId) {
-            if (!fechaStr || fechaStr === '---') return;
-            const fVirtual = new Date(fechaStr);
-            const hoy = new Date();
-            hoy.setHours(0,0,0,0);
-            fVirtual.setHours(0,0,0,0);
-            const diff = hoy - fVirtual;
-            const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const resultado = dias > 0 ? dias : 0;
-            const el = document.getElementById(celdaId);
-            if(el) {
-                el.innerText = resultado + " días";
-                el.style.color = colorDias(resultado);
-            }
         }
 
           async function actualizarEntrega(cargaId, campo, valor) {
@@ -405,28 +396,17 @@ app.get('/', async (req, res) => {
           });
 
           async function actualizarTipoCumplido(cargaId, nuevoTipo) {
-            let fechaActualizada = null;
-            if (nuevoTipo !== "") {
-              fechaActualizada = new Date().toISOString().split('T')[0];
-            }
             try {
               const response = await fetch('/actualizar-tipo-cumplido', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                   cargaId, 
-                  tipo_cumplido: nuevoTipo, 
-                  fecha_virtual: fechaActualizada 
+                  tipo_cumplido: nuevoTipo
                 })
               });
               if (response.ok) {
-                const celdaFecha = document.getElementById("fecha-virtual-" + cargaId);
-                if (celdaFecha) {
-                  celdaFecha.innerText = fechaActualizada || '---';
-                  celdaFecha.style.color = "#10b981";
-                  // Actualizar días sin cumplir visualmente al cambiar tipo
-                  calcularDiasSinCumplirInterno(fechaActualizada, "dias-cumplir-" + cargaId);
-                }
+                location.reload(); // Recargar para procesar la lógica de días
               }
             } catch (e) { 
               console.error("Error al guardar tipo cumplido", e); 
@@ -551,98 +531,11 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
 
 app.post('/actualizar-tipo-cumplido', async (req, res) => {
   try {
-    const { cargaId, tipo_cumplido, fecha_virtual } = req.body;
-    await Finanza.upsert({ 
-      cargaId, 
-      tipo_cumplido, 
-      fecha_cump_virtual: fecha_virtual 
-    });
-    res.sendStatus(200);
-  } catch (error) { res.status(500).send(error.message); }
-});
-
-app.get('/editar/:id', async (req, res) => {
-  const [f] = await Finanza.findOrCreate({ where: { cargaId: req.params.id } });
-  res.send(`
-    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
-      <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${req.params.id}</h2>
-        <form action="/guardar/${req.params.id}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-          <div><label>FLETE PAGAR</label><input type="number" name="v_flete" value="${f.v_flete}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;"></div>
-          <div><label>FLETE FACTURAR</label><input type="number" name="v_facturar" value="${f.v_facturar}" step="0.01" style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;"></div>
-          <div>
-            <label>Tipo de Anticipo:</label>
-            <select name="tipo_anticipo" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
-              <option value="">Seleccione una opción...</option>
-              <option value="Anticipo normal (70%)" ${f.tipo_anticipo === 'Anticipo normal (70%)' ? 'selected' : ''}>Anticipo normal (70%)</option>
-              <option value="Anticipo parcial (65%)" ${f.tipo_anticipo === 'Anticipo parcial (65%)' ? 'selected' : ''}>Anticipo parcial (65%)</option>
-              <option value="Anticipo medio (50%)" ${f.tipo_anticipo === 'Anticipo medio (50%)' ? 'selected' : ''}>Anticipo medio (50%)</option>
-              <option value="Sin anticipo (0)" ${f.tipo_anticipo === 'Sin anticipo (0)' ? 'selected' : ''}>Sin anticipo (0)</option>
-            </select>
-          </div>
-          <div><label>VALOR ANTICIPO</label><input type="number" name="valor_anticipo" value="${f.valor_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>SOBRE ANTICIPO</label><input type="number" name="sobre_anticipo" value="${f.sobre_anticipo}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>FECHA PAGO ANT</label><input type="date" name="fecha_pago_ant" value="${f.fecha_pago_ant||''}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          
-          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
-             <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS</p>
-             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
-                <label>MANIFIESTO 
-                  <select name="ent_manifiesto" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_manifiesto === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_manifiesto === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_manifiesto === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>REMESA 
-                  <select name="ent_remesa" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_remesa === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_remesa === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_remesa === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>HOJA TIEMPOS 
-               <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_hoja_tiempos === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>FECHA LEGALIZACIÓN
-                  <input type="date" name="fecha_legalizacion" value="${f.fecha_legalizacion||''}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                </label>
-             </div>
-          </div>
-          
-          <div style="grid-column: span 3; text-align:center; padding-top:20px;">
-            <button type="submit" style="background:#3b82f6; color:white; padding:12px 40px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">GUARDAR LIQUIDACIÓN FINAL</button>
-            <br><br>
-            <a href="/" style="color:#94a3b8; text-decoration:none;">Volver al Listado</a>
-          </div>
-        </form>
-      </div>
-    </body>`);
-});
-
-app.post('/guardar/:id', async (req, res) => {
-  try {
-    const cargaId = req.params.id;
-    const data = req.body;
-    
-    // Obtener origen de la carga para el ICA
-    const [c] = await db.query(`SELECT orig FROM "Cargas" WHERE id = ${cargaId}`, { type: QueryTypes.SELECT });
-    const flete = Number(data.v_flete || 0);
-    
-    // Cálculos Contables
-    const retefuente = Math.round(flete * 0.01);
-    let tarifaIca = 0.01;
-    const origen = (c?.orig || '').toUpperCase();
-    if (origen.includes("BUENAVENTURA")) tarifaIca = 0.004;
-    else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) tarifaIca = 0.007;
-    
-    const reteica = Math.round(flete * tarifaIca);
-    const saldo = flete - retefuente - reteica - Number(data.valor_anticipo) - Number(data.sobre_anticipo || 0) - Number(data.valor_descuento || 0);
-
+    const { cargaId, tipo_cumplido } = req.body;
+    const updateData = { cargaId, tipo_cumplido };
+    if (tipo_cumplido !== "") {
+        updateData.fecha_cump_virtual = new Date().toISOString().split('T')[0];
+    }
     await Finanza.upsert({
       cargaId,
       ...data,
