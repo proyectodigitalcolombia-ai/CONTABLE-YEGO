@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // BLOQUE AÑADIDO: CAMPO PARA EL PDF
+  pdf_reporte: { type: DataTypes.TEXT } // <--- CAMBIO: CAMPO AÑADIDO
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -267,7 +267,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             <div style="display: flex; gap: 5px; justify-content: center;">
               <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
               ${f.pdf_reporte ? `
-                <a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981;">[VER PDF]</a>
+                <a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold;">[VER PDF]</a>
               ` : `<span style="color: #475569;">[SIN PDF]</span>`}
             </div>
           </td>
