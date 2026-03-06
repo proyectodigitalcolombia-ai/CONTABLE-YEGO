@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // <--- ÚNICO CAMBIO EN MODELO
+  pdf_reporte: { type: DataTypes.TEXT } // CAMPO ADICIONAL PARA EL PDF
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -83,37 +83,37 @@ app.get('/', async (req, res) => {
 
       // Cálculo de días sin cumplir
       let diasSinCumplirCalc = 0;
-let displayDiasSinCumplir = '0 días';
-let colorDiasSinCumplir = '#3b82f6';
+      let displayDiasSinCumplir = '0 días';
+      let colorDiasSinCumplir = '#3b82f6';
 
-if (f.tipo_cumplido && f.tipo_cumplido !== "") {
-    displayDiasSinCumplir = 'VIAJE CUMPLIDO';
-    colorDiasSinCumplir = '#10b981';
-} else if (c.f_act) {
-    try {
-        let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
-        if (fechaString.includes(' 24:')) {
-            fechaString = fechaString.replace(' 24:', ' 00:');
-        }
+      if (f.tipo_cumplido && f.tipo_cumplido !== "") {
+          displayDiasSinCumplir = 'VIAJE CUMPLIDO';
+          colorDiasSinCumplir = '#10b981';
+      } else if (c.f_act) {
+          try {
+              let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
+              if (fechaString.includes(' 24:')) {
+                  fechaString = fechaString.replace(' 24:', ' 00:');
+              }
 
-        const fActualizacion = new Date(fechaString);
-        const hoy = new Date();
+              const fActualizacion = new Date(fechaString);
+              const hoy = new Date();
 
-        if (!isNaN(fActualizacion.getTime())) {
-            hoy.setHours(0, 0, 0, 0);
-            fActualizacion.setHours(0, 0, 0, 0);
-            const diff = hoy - fActualizacion;
-            const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-            displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
-        } else {
-            displayDiasSinCumplir = "0 días";
-        }
-    } catch (e) {
-        displayDiasSinCumplir = "0 días";
-    }
-} else {
-    displayDiasSinCumplir = "0 días";
-}
+              if (!isNaN(fActualizacion.getTime())) {
+                  hoy.setHours(0, 0, 0, 0);
+                  fActualizacion.setHours(0, 0, 0, 0);
+                  const diff = hoy - fActualizacion;
+                  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+                  displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
+              } else {
+                  displayDiasSinCumplir = "0 días";
+              }
+          } catch (e) {
+              displayDiasSinCumplir = "0 días";
+          }
+      } else {
+          displayDiasSinCumplir = "0 días";
+      }
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
@@ -262,6 +262,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
 </td>
 <td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
+          
           <td style="${tdStyle}">
             <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
               <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
@@ -308,7 +309,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
                 <th style="${thStyle}">RETEFUENTE</th><th style="${thStyle}">RETEICA</th>
                 <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO FINAL</th>
                 <th style="${thStyle}">DÍAS SIN PAGAR</th><th style="${thStyle}">DÍAS SIN CUMPLIR</th>
-                <th style="${thStyle}">ACCIÓN</th>
+                <th style="${thStyle}">DOCUMENTO PDF</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -353,7 +354,6 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
-            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -365,9 +365,9 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         function colorDias(dias) {
-            if (dias > 30) return '#ef4444'; // Rojo
-            if (dias > 15) return '#fbbf24'; // Naranja
-            return '#10b981'; // Verde
+            if (dias > 30) return '#ef4444';
+            if (dias > 15) return '#fbbf24';
+            return '#10b981';
         }
 
         function calcularDiasSinPagar(fechaInput, celdaId) {
@@ -389,95 +389,95 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             elementoDestino.style.color = colorDias(resultado);
         }
 
-          async function actualizarEntrega(cargaId, campo, valor) {
-            try {
-              await fetch('/actualizar-entrega', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cargaId, campo, valor })
-              });
-            } catch (e) { console.error("Error al actualizar entrega", e); }
-          }
-
-          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
-            let porcentaje = 0;
-            if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-            else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
-            else if (valorSeleccionado.includes("100%")) porcentaje = 1;
-
-            const valorCalculado = Math.round(flete * porcentaje);
-            
-            try {
-                const response = await fetch('/actualizar-anticipo-directo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        cargaId, 
-                        tipo_anticipo: valorSeleccionado, 
-                        valor_anticipo: valorCalculado,
-                        flete: flete,
-                        origen: origen
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById("valor-ant-" + cargaId).innerText = "$" + valorCalculado.toLocaleString('es-CO');
-                    document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
-                    document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
-                    document.getElementById("saldo-" + cargaId).innerText = "$" + data.saldo.toLocaleString('es-CO');
-                }
-            } catch (error) { 
-                console.error("Error al actualizar anticipo:", error); 
-            }
-          }
-
-          async function actualizarEstadoFinanciero(id, nuevoEstado) {
-            let fechaActualizada = null;
-            if (nuevoEstado === "TRANSFERIDO") {
-                const ahora = new Date();
-                fechaActualizada = ahora.toISOString().split('T')[0];
-            }
-            try {
-                const response = await fetch('/actualizar-estado-financiero', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, estado: nuevoEstado, fechaPago: fechaActualizada })
-                });
-                if (response.ok) {
-                    const celdaFecha = document.getElementById("fecha-pago-" + id);
-                    if (celdaFecha) {
-                        celdaFecha.innerText = fechaActualizada || '---';
-                        celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
-                    }
-                }
-            } catch (error) { console.error(error); }
-          }
-
-          document.getElementById('buscador').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.fila-carga').forEach(fila => {
-              fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
+        async function actualizarEntrega(cargaId, campo, valor) {
+          try {
+            await fetch('/actualizar-entrega', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cargaId, campo, valor })
             });
-          });
+          } catch (e) { console.error("Error al actualizar entrega", e); }
+        }
 
-          async function actualizarTipoCumplido(cargaId, nuevoTipo) {
-            try {
-              const response = await fetch('/actualizar-tipo-cumplido', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  cargaId, 
-                  tipo_cumplido: nuevoTipo
-                })
+        async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
+          let porcentaje = 0;
+          if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
+          else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
+          else if (valorSeleccionado.includes("100%")) porcentaje = 1;
+
+          const valorCalculado = Math.round(flete * porcentaje);
+          
+          try {
+              const response = await fetch('/actualizar-anticipo-directo', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                      cargaId, 
+                      tipo_anticipo: valorSeleccionado, 
+                      valor_anticipo: valorCalculado,
+                      flete: flete,
+                      origen: origen
+                  })
+              });
+
+              if (response.ok) {
+                  const data = await response.json();
+                  document.getElementById("valor-ant-" + cargaId).innerText = "$" + valorCalculado.toLocaleString('es-CO');
+                  document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
+                  document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
+                  document.getElementById("saldo-" + cargaId).innerText = "$" + data.saldo.toLocaleString('es-CO');
+              }
+          } catch (error) { 
+              console.error("Error al actualizar anticipo:", error); 
+          }
+        }
+
+        async function actualizarEstadoFinanciero(id, nuevoEstado) {
+          let fechaActualizada = null;
+          if (nuevoEstado === "TRANSFERIDO") {
+              const ahora = new Date();
+              fechaActualizada = ahora.toISOString().split('T')[0];
+          }
+          try {
+              const response = await fetch('/actualizar-estado-financiero', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id, estado: nuevoEstado, fechaPago: fechaActualizada })
               });
               if (response.ok) {
-                location.reload(); 
+                  const celdaFecha = document.getElementById("fecha-pago-" + id);
+                  if (celdaFecha) {
+                      celdaFecha.innerText = fechaActualizada || '---';
+                      celdaFecha.style.color = nuevoEstado === "TRANSFERIDO" ? "#10b981" : "white";
+                  }
               }
-            } catch (e) { 
-              console.error("Error al guardar tipo cumplido", e); 
+          } catch (error) { console.error(error); }
+        }
+
+        document.getElementById('buscador').addEventListener('input', (e) => {
+          const term = e.target.value.toLowerCase();
+          document.querySelectorAll('.fila-carga').forEach(fila => {
+            fila.style.display = fila.getAttribute('data-placa').includes(term) ? '' : 'none';
+          });
+        });
+
+        async function actualizarTipoCumplido(cargaId, nuevoTipo) {
+          try {
+            const response = await fetch('/actualizar-tipo-cumplido', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                cargaId, 
+                tipo_cumplido: nuevoTipo
+              })
+            });
+            if (response.ok) {
+              location.reload(); 
             }
+          } catch (e) { 
+            console.error("Error al guardar tipo cumplido", e); 
           }
+        }
 
         async function formatToMoney(cargaId, input) {
             let numValue = input.value.replace(/[^0-9]/g, '') || 0;
@@ -515,24 +515,25 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
-  async function actualizarEstadoFinal(cargaId, nuevoEstado) {
-  try {
-    const response = await fetch('/actualizar-entrega', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        cargaId: cargaId, 
-        campo: 'estado_final', 
-        valor: nuevoEstado 
-      })
-    });
-    if (response.ok) {
-       location.reload(); 
-    }
-  } catch (e) {
-    console.error("Error:", e);
-  }
-}
+
+        async function actualizarEstadoFinal(cargaId, nuevoEstado) {
+          try {
+            const response = await fetch('/actualizar-entrega', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                cargaId: cargaId, 
+                campo: 'estado_final', 
+                valor: nuevoEstado 
+              })
+            });
+            if (response.ok) {
+               location.reload(); 
+            }
+          } catch (e) {
+            console.error("Error:", e);
+          }
+        }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
