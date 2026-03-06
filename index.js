@@ -71,6 +71,15 @@ app.get('/', async (req, res) => {
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
+      // Cálculos iniciales de retenciones para pasar a los scripts
+      const rfVal = Math.round(fletePagar * 0.01);
+      const origenStr = (c.orig || '').toUpperCase();
+      let tIcaVal = 0.01;
+      if (origenStr.includes("BUENAVENTURA")) tIcaVal = 0.004;
+      else if (origenStr.includes("CARTAGENA") || origenStr.includes("BARRANQUILLA") || origenStr.includes("SANTA MARTA")) tIcaVal = 0.007;
+      else if (origenStr.includes("YUMBO") || origenStr.includes("FUNZA")) tIcaVal = 0.005;
+      const riVal = Math.round(fletePagar * tIcaVal);
+
       const renderSelectEntrega = (campo, valorActual) => `
         <select onchange="actualizarEntrega(${c.id}, '${campo}', this.value)" style="${selStyle}">
           <option value="SI" ${valorActual === 'SI' ? 'selected' : ''}>SI</option>
@@ -117,7 +126,7 @@ app.get('/', async (req, res) => {
                 value="$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}" 
                 style="background: #0f172a; color: #fbbf24; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
                 onfocus="this.type='number'; this.value='${f.sobre_anticipo || 0}'"
-                onblur="formatToMoney(${c.id}, this)"
+                onblur="formatToMoney(${c.id}, this, ${fletePagar}, ${rfVal}, ${riVal})"
             >
             </td>
           <td style="${tdStyle}">
@@ -150,7 +159,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_cargue', f.ent_tiq_cargue)}</td>
           <td style="${tdStyle}">${renderSelectEntrega('ent_tiq_descargue', f.ent_tiq_descargue)}</td>
           <td style="${tdStyle}">
-            <select onchange="gestionarNovedad(${c.id}, this.value)" style="${selStyle}">
+            <select onchange="gestionarNovedad(${c.id}, this.value, ${fletePagar}, ${rfVal}, ${riVal})" style="${selStyle}">
               <option value="NO" ${f.presenta_novedades === 'NO' ? 'selected' : ''}>NO</option>
               <option value="SI" ${f.presenta_novedades === 'SI' ? 'selected' : ''}>SI</option>
             </select>
@@ -170,7 +179,7 @@ app.get('/', async (req, res) => {
                 value="$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}" 
                 style="background: #0f172a; color: #ef4444; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
                 onfocus="this.type='number'; this.value='${f.valor_descuento || 0}'"
-                onblur="formatToMoneyDesc(${c.id}, this)"
+                onblur="formatToMoneyDesc(${c.id}, this, ${fletePagar}, ${rfVal}, ${riVal})"
             >
             <span id="span-desc-${c.id}" style="display: ${f.presenta_novedades === 'SI' ? 'none' : 'inline-block'};">---</span>
             </td>
@@ -257,6 +266,17 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
+          // FUNCIÓN DE CÁLCULO AUTOMÁTICO DE SALDO
+          function calcularSaldoLocal(id, flete, rf, ri) {
+            const vAnt = parseFloat(document.getElementById("valor-ant-" + id).innerText.replace(/[^0-9]/g, "")) || 0;
+            const sAnt = parseFloat(document.getElementById("input-sobre-" + id).value.replace(/[^0-9]/g, "")) || 0;
+            const vDesc = parseFloat(document.getElementById("input-desc-" + id).value.replace(/[^0-9]/g, "")) || 0;
+            
+            const saldo = flete - vAnt - sAnt - vDesc - rf - ri;
+            document.getElementById("saldo-" + id).innerText = "$" + Math.round(saldo).toLocaleString('es-CO');
+            return saldo;
+          }
+
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
               await fetch('/actualizar-entrega', {
@@ -277,6 +297,7 @@ app.get('/', async (req, res) => {
             else if (valorSeleccionado.includes("100%")) porcentaje = 1;
 
             const valorCalculado = Math.round(flete * porcentaje);
+            document.getElementById("valor-ant-" + cargaId).innerText = "$" + valorCalculado.toLocaleString('es-CO');
             
             try {
                 const response = await fetch('/actualizar-anticipo-directo', {
@@ -293,10 +314,10 @@ app.get('/', async (req, res) => {
 
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById("valor-ant-" + cargaId).innerText = "$" + valorCalculado.toLocaleString('es-CO');
                     document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
                     document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
-                    document.getElementById("saldo-" + cargaId).innerText = "$" + data.saldo.toLocaleString('es-CO');
+                    // Sincronizar saldo visual
+                    calcularSaldoLocal(cargaId, flete, data.retefuente, data.reteica);
                 }
             } catch (error) { 
                 console.error("Error al actualizar anticipo:", error); 
@@ -359,14 +380,16 @@ app.get('/', async (req, res) => {
             }
           }
 
-        async function formatToMoney(cargaId, input) {
-            let numValue = input.value || 0;
+        async function formatToMoney(cargaId, input, flete, rf, ri) {
+            let numValue = input.value.replace(/[^0-9]/g, "") || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
+            const nuevoSaldo = calcularSaldoLocal(cargaId, flete, rf, ri);
             await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
+            await actualizarEntrega(cargaId, 'saldo_a_pagar', nuevoSaldo);
         }
 
-        async function gestionarNovedad(cargaId, valor) {
+        async function gestionarNovedad(cargaId, valor, flete, rf, ri) {
             const divObs = document.getElementById("obs-" + cargaId);
             const inputDesc = document.getElementById("input-desc-" + cargaId);
             const spanDesc = document.getElementById("span-desc-" + cargaId);
@@ -383,17 +406,21 @@ app.get('/', async (req, res) => {
                 inputDesc.style.display = "none";
                 spanDesc.style.display = "inline-block";
                 inputDesc.value = "$0";
+                const nuevoSaldo = calcularSaldoLocal(cargaId, flete, rf, ri);
                 await actualizarEntrega(cargaId, 'valor_descuento', 0);
+                await actualizarEntrega(cargaId, 'saldo_a_pagar', nuevoSaldo);
                 await actualizarEntrega(cargaId, 'obs_novedad', '');
             }
             await actualizarEntrega(cargaId, 'presenta_novedades', valor);
         }
 
-        async function formatToMoneyDesc(cargaId, input) {
-            let numValue = input.value || 0;
+        async function formatToMoneyDesc(cargaId, input, flete, rf, ri) {
+            let numValue = input.value.replace(/[^0-9]/g, "") || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
+            const nuevoSaldo = calcularSaldoLocal(cargaId, flete, rf, ri);
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
+            await actualizarEntrega(cargaId, 'saldo_a_pagar', nuevoSaldo);
         }
         </script>
       </body>`);
@@ -543,10 +570,14 @@ app.post('/guardar/:id', async (req, res) => {
     const desc = Number(req.body.valor_descuento);
     
     const saldo = flete - retef - retei - ant - sobre - desc;
+
+    await Finanza.update({
+        ...req.body,
+        saldo_a_pagar: saldo
+    }, { where: { cargaId: req.params.id } });
     
-    await Finanza.update({ ...req.body, saldo_a_pagar: saldo }, { where: { cargaId: req.params.id } });
     res.redirect('/');
-  } catch (e) { res.status(500).send(e.message); }
+  } catch (error) { res.status(500).send(error.message); }
 });
 
 app.listen(process.env.PORT || 3000);
