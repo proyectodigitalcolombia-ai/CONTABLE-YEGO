@@ -71,7 +71,7 @@ app.get('/', async (req, res) => {
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
-      // Cálculos iniciales de retenciones para pasar a los scripts
+      // Pre-cálculo de retenciones para pasar a los eventos del frontend
       const rfVal = Math.round(fletePagar * 0.01);
       const origenStr = (c.orig || '').toUpperCase();
       let tIcaVal = 0.01;
@@ -200,18 +200,10 @@ app.get('/', async (req, res) => {
             >
             </td>
           <td id="retefuente-${c.id}" style="${tdStyle}">
-  $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
+  $${ Math.round(fletePagar * 0.01).toLocaleString('es-CO') }
 </td>
           <td id="reteica-${c.id}" style="${tdStyle}">
-  ${(() => {
-    const fBase = Number(f.v_flete) || Number(c.f_p) || 0;
-    const origen = (c.orig || '').toUpperCase();
-    let tarifa = 0.01;
-    if (origen.includes("BUENAVENTURA")) tarifa = 0.004;
-    else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) tarifa = 0.007;
-    else if (origen.includes("YUMBO") || origen.includes("FUNZA")) tarifa = 0.005;
-    return '$' + Math.round(fBase * tarifa).toLocaleString('es-CO');
-  })()}
+  $${ riVal.toLocaleString('es-CO') }
 </td>
           <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
@@ -266,8 +258,9 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
-          // FUNCIÓN DE CÁLCULO AUTOMÁTICO DE SALDO
+          // FUNCIÓN CENTRALIZADA DE CÁLCULO
           function calcularSaldoLocal(id, flete, rf, ri) {
+            if (flete <= 0) return 0;
             const vAnt = parseFloat(document.getElementById("valor-ant-" + id).innerText.replace(/[^0-9]/g, "")) || 0;
             const sAnt = parseFloat(document.getElementById("input-sobre-" + id).value.replace(/[^0-9]/g, "")) || 0;
             const vDesc = parseFloat(document.getElementById("input-desc-" + id).value.replace(/[^0-9]/g, "")) || 0;
@@ -288,6 +281,11 @@ app.get('/', async (req, res) => {
           }
 
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
+            if (flete <= 0) {
+              alert("El Flete debe ser mayor a 0 para calcular anticipos.");
+              return;
+            }
+
             let porcentaje = 0;
             if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
             else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
@@ -316,7 +314,7 @@ app.get('/', async (req, res) => {
                     const data = await response.json();
                     document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
                     document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
-                    // Sincronizar saldo visual
+                    // Al detectar el cambio de tipo de anticipo, calculamos saldo inmediatamente
                     calcularSaldoLocal(cargaId, flete, data.retefuente, data.reteica);
                 }
             } catch (error) { 
