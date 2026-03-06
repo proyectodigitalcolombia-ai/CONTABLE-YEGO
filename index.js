@@ -76,7 +76,7 @@ app.get('/', async (req, res) => {
       const fechaFin = f.estado_final === 'TRANSFERIDO' && f.updatedAt ? new Date(f.updatedAt) : new Date();
       const diferenciaDias = Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24));
       const diasSinPagar = diferenciaDias > 0 ? diferenciaDias : 0;
-      const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
+      const colorDiasCss = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
       // -------------------------------
 
       const renderSelectEntrega = (campo, valorActual) => `
@@ -187,7 +187,7 @@ app.get('/', async (req, res) => {
                 type="date" 
                 value="${f.fecha_cump_docs || ''}" 
                 style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
-                onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
+                onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value, '${c.createdAt}')"
             >
             </td>
             <td style="${tdStyle}">
@@ -195,11 +195,11 @@ app.get('/', async (req, res) => {
                 type="date" 
                 value="${f.fecha_legalizacion || ''}" 
                 style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
-                onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
+                onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value, '${c.createdAt}')"
             >
             </td>
           <td id="retefuente-${c.id}" style="${tdStyle}">
-   $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
+       $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
 </td>
           <td id="reteica-${c.id}" style="${tdStyle}">
   ${(() => {
@@ -221,7 +221,7 @@ app.get('/', async (req, res) => {
     <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
   </select>
 </td>
-<td style="${tdStyle} color: ${colorDias}; font-weight: bold;">
+<td id="dias-pagar-${c.id}" style="${tdStyle} color: ${colorDiasCss}; font-weight: bold;">
   ${f.estado_final === 'TRANSFERIDO' ? 'PAGADO EN ' : ''} ${diasSinPagar} días
 </td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
@@ -272,20 +272,39 @@ app.get('/', async (req, res) => {
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
-        function colorDias(dias) {
-    if (dias > 30) return 'red'; // Ejemplo de lógica
-    if (dias > 15) return 'orange';
-    return 'green';
-}
+
         <script>
-          async function actualizarEntrega(cargaId, campo, valor) {
+          function colorDias(dias) {
+              if (dias > 30) return '#ef4444'; // Rojo
+              if (dias > 15) return '#fbbf24'; // Naranja
+              return '#10b981'; // Verde
+          }
+
+          function recalcularDias(cargaId, fechaRegistroStr) {
+              const fechaRegistro = new Date(fechaRegistroStr);
+              const fechaHoy = new Date();
+              const diffTiempo = Math.abs(fechaHoy - fechaRegistro);
+              const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24));
+              
+              const celda = document.getElementById("dias-pagar-" + cargaId);
+              if (celda) {
+                  celda.innerText = diffDias + " días";
+                  celda.style.color = colorDias(diffDias);
+              }
+          }
+
+          async function actualizarEntrega(cargaId, campo, valor, fechaReg) {
             try {
               await fetch('/actualizar-entrega', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cargaId, campo, valor })
               });
-            } catch (e) { console.error("Error al actualizar entrega", e); }
+
+              if ((campo === 'fecha_cump_docs' || campo === 'fecha_legalizacion') && fechaReg) {
+                  recalcularDias(cargaId, fechaReg);
+              }
+            } catch (e) { console.error("Error al actualizar", e); }
           }
 
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
@@ -416,6 +435,7 @@ app.get('/', async (req, res) => {
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
+
           async function actualizarEstadoFinal(cargaId, nuevoEstado) {
           try {
             const response = await fetch('/actualizar-entrega', {
@@ -428,7 +448,6 @@ app.get('/', async (req, res) => {
               })
             });
             if (response.ok) {
-               console.log("Estado final actualizado");
                location.reload(); 
             }
           } catch (e) {
@@ -440,6 +459,7 @@ app.get('/', async (req, res) => {
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
+// RUTAS DE ACTUALIZACIÓN POST
 app.post('/actualizar-entrega', async (req, res) => {
   try {
     const { cargaId, campo, valor } = req.body;
@@ -463,11 +483,7 @@ app.post('/actualizar-estado-financiero', async (req, res) => {
 app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
     const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
-    
-    // CALCULO AUTOMATICO RETENCIONES
     const retefuente = Math.round(flete * 0.01);
-    
-    // Lógica Reteica según ciudad
     let tarifaIca = 0.01; 
     const ciudad = (origen || '').toUpperCase();
     if (ciudad.includes("BUENAVENTURA")) tarifaIca = 0.004;
@@ -475,7 +491,6 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
     else if (ciudad.includes("YUMBO") || ciudad.includes("FUNZA")) tarifaIca = 0.005;
     
     const reteica = Math.round(flete * tarifaIca);
-    
     const f = await Finanza.findOne({ where: { cargaId } });
     const sobre = Number(f?.sobre_anticipo || 0);
     const desc = Number(f?.valor_descuento || 0);
@@ -538,37 +553,13 @@ app.get('/editar/:id', async (req, res) => {
                   <select name="ent_manifiesto" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
                     <option value="SI" ${f.ent_manifiesto === 'SI' ? 'selected' : ''}>SI</option>
                     <option value="NO" ${f.ent_manifiesto === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_manifiesto === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>REMESA 
-                  <select name="ent_remesa" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_remesa === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_remesa === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_remesa === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>HOJA TIEMPOS 
-                  <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_hoja_tiempos === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-                <label>DOCS CLIENTE 
-                  <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
              </div>
           </div>
         </form>
       </div>
-    </body>
-  `);
+    </body>`);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+app.listen(3000, () => console.log('Servidor en puerto 3000'));
