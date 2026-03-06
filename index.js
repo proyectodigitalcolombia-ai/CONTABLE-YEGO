@@ -71,7 +71,21 @@ app.get('/', async (req, res) => {
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
-      // Pre-cálculo de retenciones para pasar a los eventos del frontend
+      // LÓGICA DE DÍAS SIN PAGAR (INICIAL)
+      let diasTranscurridos = 0;
+      let colorDias = '#10b981'; 
+      if (f.fecha_cump_docs) {
+          const inicio = new Date(f.fecha_cump_docs + 'T00:00:00');
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
+          const diferencia = hoy - inicio;
+          diasTranscurridos = Math.floor(diferencia / (1000 * 60 * 60 * 24));
+          if (diasTranscurridos < 0) diasTranscurridos = 0;
+          
+          if (diasTranscurridos > 13) colorDias = '#ef4444';
+          else if (diasTranscurridos >= 6) colorDias = '#fbbf24';
+      }
+
       const rfVal = Math.round(fletePagar * 0.01);
       const origenStr = (c.orig || '').toUpperCase();
       let tIcaVal = 0.01;
@@ -207,7 +221,7 @@ app.get('/', async (req, res) => {
 </td>
           <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${f.estado_final || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
+          <td id="dias-pago-${c.id}" style="${tdStyle} color: ${colorDias}; font-weight: bold;">${diasTranscurridos}</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
             <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
@@ -258,7 +272,12 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
-          // FUNCIÓN CENTRALIZADA DE CÁLCULO
+          function obtenerColorDias(dias) {
+            if (dias <= 5) return '#10b981';
+            if (dias <= 13) return '#fbbf24';
+            return '#ef4444';
+          }
+
           function calcularSaldoLocal(id, flete, rf, ri) {
             if (flete <= 0) return 0;
             const vAnt = parseFloat(document.getElementById("valor-ant-" + id).innerText.replace(/[^0-9]/g, "")) || 0;
@@ -277,6 +296,22 @@ app.get('/', async (req, res) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cargaId, campo, valor })
               });
+
+              if (campo === 'fecha_cump_docs') {
+                const celdaDias = document.getElementById("dias-pago-" + cargaId);
+                if (valor) {
+                  const fechaSel = new Date(valor + 'T00:00:00');
+                  const hoy = new Date();
+                  hoy.setHours(0,0,0,0);
+                  const diff = Math.floor((hoy - fechaSel) / (1000 * 60 * 60 * 24));
+                  const dias = diff > 0 ? diff : 0;
+                  celdaDias.innerText = dias;
+                  celdaDias.style.color = obtenerColorDias(dias);
+                } else {
+                  celdaDias.innerText = "0";
+                  celdaDias.style.color = '#10b981';
+                }
+              }
             } catch (e) { console.error("Error al actualizar entrega", e); }
           }
 
@@ -314,7 +349,6 @@ app.get('/', async (req, res) => {
                     const data = await response.json();
                     document.getElementById("retefuente-" + cargaId).innerText = "$" + data.retefuente.toLocaleString('es-CO');
                     document.getElementById("reteica-" + cargaId).innerText = "$" + data.reteica.toLocaleString('es-CO');
-                    // Al detectar el cambio de tipo de anticipo, calculamos saldo inmediatamente
                     calcularSaldoLocal(cargaId, flete, data.retefuente, data.reteica);
                 }
             } catch (error) { 
@@ -449,10 +483,8 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
     const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
     
-    // CALCULO AUTOMATICO RETENCIONES
     const retefuente = Math.round(flete * 0.01);
     
-    // Lógica Reteica según ciudad
     let tarifaIca = 0.01; 
     const ciudad = (origen || '').toUpperCase();
     if (ciudad.includes("BUENAVENTURA")) tarifaIca = 0.004;
@@ -542,6 +574,9 @@ app.get('/editar/:id', async (req, res) => {
                 </label>
                 <label>DOCS CLIENTE 
                   <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" $`);
+});
+// ... continuación desde la etiqueta <select name="ent_docs_cliente" ...
                     <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
                     <option value="NO" ${f.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
                     <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
@@ -549,33 +584,22 @@ app.get('/editar/:id', async (req, res) => {
                 </label>
              </div>
           </div>
-          <div><label>RETEFUENTE (Auto)</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA (Auto)</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR Y LIQUIDAR</button>
+
+          <div style="grid-column: span 3; text-align: center; margin-top: 20px;">
+            <button type="submit" style="background:#3b82f6; color:white; padding:12px 40px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">GUARDAR CAMBIOS</button>
+            <a href="/" style="margin-left:15px; color:#94a3b8; text-decoration:none;">Cancelar</a>
+          </div>
         </form>
       </div>
-    </body>`);
+    </body>
+  `);
 });
 
 app.post('/guardar/:id', async (req, res) => {
   try {
-    const flete = Number(req.body.v_flete);
-    const retef = Number(req.body.retefuente);
-    const retei = Number(req.body.reteica);
-    const ant = Number(req.body.valor_anticipo);
-    const sobre = Number(req.body.sobre_anticipo);
-    const desc = Number(req.body.valor_descuento);
-    
-    const saldo = flete - retef - retei - ant - sobre - desc;
-
-    await Finanza.update({
-        ...req.body,
-        saldo_a_pagar: saldo
-    }, { where: { cargaId: req.params.id } });
-    
+    await Finanza.upsert({ cargaId: req.params.id, ...req.body });
     res.redirect('/');
   } catch (error) { res.status(500).send(error.message); }
 });
 
-app.listen(process.env.PORT || 3000);
+app.listen(process.env.PORT || 3000, () => console.log('Servidor Yego Contable activo'));
