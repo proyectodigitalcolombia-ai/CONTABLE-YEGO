@@ -77,6 +77,16 @@ app.get('/', async (req, res) => {
           <option value="NO" ${valorActual === 'NO' ? 'selected' : ''}>NO</option>
           <option value="NO APLICA" ${valorActual === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
         </select>
+        // Dentro del cargas.map, antes del return del HTML:
+      const fechaInicio = c.createdAt ? new Date(c.createdAt) : new Date();
+      const fechaFin = f.estado_final === 'TRANSFERIDO' && f.updatedAt ? new Date(f.updatedAt) : new Date();
+
+// Cálculo de milisegundos a días
+const diferenciaDias = Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24));
+const diasSinPagar = diferenciaDias > 0 ? diferenciaDias : 0;
+
+// Color dinámico para la celda de días
+const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
       `;
 
       return `
@@ -213,7 +223,9 @@ app.get('/', async (req, res) => {
     <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
   </select>
 </td>
-<td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
+<td style="${tdStyle} color: ${colorDias}; font-weight: bold;">
+  ${f.estado_final === 'TRANSFERIDO' ? 'PAGADO EN ' : ''} ${diasSinPagar} días
+</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
             <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
