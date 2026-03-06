@@ -41,7 +41,7 @@ const Finanza = db.define('Finanza', {
   reteica: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   saldo_a_pagar: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
-  dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
+dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'Yego_Finanzas' });
 
@@ -272,6 +272,39 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
+        // Función auxiliar para determinar color
+function obtenerColorDias(d) {
+  if (d > 13) return '#ef4444'; // Rojo
+  if (d >= 6) return '#fbbf24'; // Amarillo
+  return '#10b981';             // Verde
+}
+
+// Modificación a la función de actualizar entrega para que afecte el contador
+async function actualizarEntrega(cargaId, campo, valor) {
+  try {
+    await fetch('/actualizar-entrega', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cargaId, campo, valor })
+    });
+
+    // Si el campo editado es la fecha de documentos, actualizar el contador visual
+    if (campo === 'fecha_cump_docs') {
+      const celda = document.getElementById("dias-pago-" + cargaId);
+      if (valor) {
+        const fEntrega = new Date(valor + 'T00:00:00');
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const diff = Math.max(0, Math.floor((hoy - fEntrega) / (1000 * 60 * 60 * 24)));
+        celda.innerText = diff;
+        celda.style.color = obtenerColorDias(diff);
+      } else {
+        celda.innerText = "0";
+        celda.style.color = '#10b981';
+      }
+    }
+  } catch (e) { console.error("Error actualizando:", e); }
+}
           function obtenerColorDias(dias) {
             if (dias <= 5) return '#10b981';
             if (dias <= 13) return '#fbbf24';
@@ -289,33 +322,7 @@ app.get('/', async (req, res) => {
             return saldo;
           }
 
-          async function actualizarEntrega(cargaId, campo, valor) {
-            try {
-              await fetch('/actualizar-entrega', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cargaId, campo, valor })
-              });
-
-              if (campo === 'fecha_cump_docs') {
-                const celdaDias = document.getElementById("dias-pago-" + cargaId);
-                if (valor) {
-                  const fechaSel = new Date(valor + 'T00:00:00');
-                  const hoy = new Date();
-                  hoy.setHours(0,0,0,0);
-                  const diff = Math.floor((hoy - fechaSel) / (1000 * 60 * 60 * 24));
-                  const dias = diff > 0 ? diff : 0;
-                  celdaDias.innerText = dias;
-                  celdaDias.style.color = obtenerColorDias(dias);
-                } else {
-                  celdaDias.innerText = "0";
-                  celdaDias.style.color = '#10b981';
-                }
-              }
-            } catch (e) { console.error("Error al actualizar entrega", e); }
-          }
-
-          async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
+            async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
             if (flete <= 0) {
               alert("El Flete debe ser mayor a 0 para calcular anticipos.");
               return;
