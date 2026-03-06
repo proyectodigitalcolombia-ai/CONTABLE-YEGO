@@ -571,13 +571,59 @@ app.get('/editar/:id', async (req, res) => {
                     <option value="NO APLICA" ${f.ent_remesa === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
-                <label>HOJA TIEMPOS 
+                <label>HOJA TIEMPOS
                   <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
                     <option value="SI" ${f.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
                     <option value="NO" ${f.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
                     <option value="NO APLICA" ${f.ent_hoja_tiempos === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
                   </select>
                 </label>
-                <label>DOCS CLIENTE 
-                  <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                    <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
+                <label>FECHA LEGALIZACIÓN
+                  <input type="date" name="fecha_legalizacion" value="${f.fecha_legalizacion||''}" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                </label>
+             </div>
+          </div>
+          
+          <div style="grid-column: span 3; text-align:center; padding-top:20px;">
+            <button type="submit" style="background:#3b82f6; color:white; padding:12px 40px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">GUARDAR LIQUIDACIÓN FINAL</button>
+            <br><br>
+            <a href="/" style="color:#94a3b8; text-decoration:none;">Volver al Listado</a>
+          </div>
+        </form>
+      </div>
+    </body>`);
+});
+
+app.post('/guardar/:id', async (req, res) => {
+  try {
+    const cargaId = req.params.id;
+    const data = req.body;
+    
+    // Obtener origen de la carga para el ICA
+    const [c] = await db.query(`SELECT orig FROM "Cargas" WHERE id = ${cargaId}`, { type: QueryTypes.SELECT });
+    const flete = Number(data.v_flete || 0);
+    
+    // Cálculos Contables
+    const retefuente = Math.round(flete * 0.01);
+    let tarifaIca = 0.01;
+    const origen = (c?.orig || '').toUpperCase();
+    if (origen.includes("BUENAVENTURA")) tarifaIca = 0.004;
+    else if (origen.includes("CARTAGENA") || origen.includes("BARRANQUILLA") || origen.includes("SANTA MARTA")) tarifaIca = 0.007;
+    
+    const reteica = Math.round(flete * tarifaIca);
+    const saldo = flete - retefuente - reteica - Number(data.valor_anticipo) - Number(data.sobre_anticipo || 0) - Number(data.valor_descuento || 0);
+
+    await Finanza.upsert({
+      cargaId,
+      ...data,
+      retefuente,
+      reteica,
+      saldo_a_pagar: saldo
+    });
+    
+    res.redirect('/');
+  } catch (error) { res.status(500).send(error.message); }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
