@@ -254,7 +254,7 @@ app.get('/', async (req, res) => {
                 <th style="${thStyle}">OBSERVACION NOVEDAD</th><th style="${thStyle}">VALOR DESCUENTO</th>
                 <th style="${thStyle}">FECHA DE CUMPLIDO DOCUMENTOS</th><th style="${thStyle}">FECHA DE LEGALIZACIÓN</th>
                 <th style="${thStyle}">RETEFUENTE</th><th style="${thStyle}">RETEICA</th>
-                <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO</th>
+                <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO FINAL</th>
                 <th style="${thStyle}">DÍAS SIN PAGAR</th><th style="${thStyle}">DÍAS SIN CUMPLIR</th>
                 <th style="${thStyle}">ACCIÓN</th>
               </tr>
@@ -402,7 +402,7 @@ app.get('/', async (req, res) => {
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
-       async function actualizarEstadoFinal(cargaId, nuevoEstado) {
+  async function actualizarEstadoFinal(cargaId, nuevoEstado) {
   try {
     const response = await fetch('/actualizar-entrega', {
       method: 'POST',
@@ -413,19 +413,13 @@ app.get('/', async (req, res) => {
         valor: nuevoEstado 
       })
     });
-
     if (response.ok) {
-      console.log("Estado final actualizado a: " + nuevoEstado);
-      // Opcional: Recargar la página o cambiar el color del borde del select
-      if(nuevoEstado === 'TRANSFERIDO') {
-          event.target.style.borderColor = '#10b981';
-      } else {
-          event.target.style.borderColor = '#334155';
-      }
+       console.log("Estado final actualizado");
+       // Opcional: recargar para aplicar colores de borde
+       location.reload(); 
     }
   } catch (e) {
-    console.error("Error al actualizar estado final:", e);
-    alert("No se pudo actualizar el estado.");
+    console.error("Error:", e);
   }
 }
         </script>
