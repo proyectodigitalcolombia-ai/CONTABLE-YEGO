@@ -205,8 +205,15 @@ app.get('/', async (req, res) => {
   })()}
 </td>
           <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
-          <td style="${tdStyle}">${f.estado_final || '---'}</td>
-          <td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
+<td style="${tdStyle}">
+  <select 
+    onchange="actualizarEstadoFinal(${c.id}, this.value)" 
+    style="${selStyle} width: 100%; border: 1px solid ${f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#334155'};">
+    <option value="PENDIENTE" ${f.estado_final === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+    <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
+  </select>
+</td>
+<td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
             <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
@@ -395,6 +402,32 @@ app.get('/', async (req, res) => {
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
+       async function actualizarEstadoFinal(cargaId, nuevoEstado) {
+  try {
+    const response = await fetch('/actualizar-entrega', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        cargaId: cargaId, 
+        campo: 'estado_final', 
+        valor: nuevoEstado 
+      })
+    });
+
+    if (response.ok) {
+      console.log("Estado final actualizado a: " + nuevoEstado);
+      // Opcional: Recargar la página o cambiar el color del borde del select
+      if(nuevoEstado === 'TRANSFERIDO') {
+          event.target.style.borderColor = '#10b981';
+      } else {
+          event.target.style.borderColor = '#334155';
+      }
+    }
+  } catch (e) {
+    console.error("Error al actualizar estado final:", e);
+    alert("No se pudo actualizar el estado.");
+  }
+}
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
