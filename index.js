@@ -68,6 +68,18 @@ app.get('/', async (req, res) => {
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
+      // Cálculo inicial de días sin pagar para el renderizado
+      let diasCalculados = 0;
+      if (f.fecha_cump_docs) {
+          const fCumplido = new Date(f.fecha_cump_docs);
+          const hoy = new Date();
+          hoy.setHours(0,0,0,0);
+          fCumplido.setHours(0,0,0,0);
+          const diff = hoy - fCumplido;
+          diasCalculados = Math.floor(diff / (1000 * 60 * 60 * 24));
+          if (diasCalculados < 0) diasCalculados = 0;
+      }
+
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
@@ -179,7 +191,7 @@ app.get('/', async (req, res) => {
                 type="date" 
                 value="${f.fecha_cump_docs || ''}" 
                 style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
-                onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value)"
+                onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value); calcularDiasSinPagar(this, 'dias-pago-${c.id}')"
             >
             </td>
             <td style="${tdStyle}">
@@ -213,7 +225,7 @@ app.get('/', async (req, res) => {
     <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
   </select>
 </td>
-<td style="${tdStyle} color: #ef4444;">${f.dias_sin_pagar || 0}</td>
+<td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
           <td style="${tdStyle} color: #3b82f6;">${f.dias_sin_cumplir || 0}</td>
           <td style="padding: 10px; text-align: center;">
             <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
@@ -264,6 +276,31 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
+        function colorDias(dias) {
+            if (dias > 30) return '#ef4444'; // Rojo
+            if (dias > 15) return '#fbbf24'; // Naranja
+            return '#10b981'; // Verde
+        }
+
+        function calcularDiasSinPagar(fechaInput, celdaId) {
+            if (!fechaInput.value) {
+                document.getElementById(celdaId).innerText = "0 días";
+                return;
+            }
+            const fechaSeleccionada = new Date(fechaInput.value);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            fechaSeleccionada.setHours(0, 0, 0, 0);
+
+            const diferenciaMs = hoy - fechaSeleccionada;
+            const dias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+            const resultado = dias > 0 ? dias : 0;
+            
+            const elementoDestino = document.getElementById(celdaId);
+            elementoDestino.innerText = resultado + " días";
+            elementoDestino.style.color = colorDias(resultado);
+        }
+
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
               await fetch('/actualizar-entrega', {
@@ -415,7 +452,6 @@ app.get('/', async (req, res) => {
     });
     if (response.ok) {
        console.log("Estado final actualizado");
-       // Opcional: recargar para aplicar colores de borde
        location.reload(); 
     }
   } catch (e) {
@@ -545,35 +581,3 @@ app.get('/editar/:id', async (req, res) => {
                 <label>DOCS CLIENTE 
                   <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
                     <option value="SI" ${f.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
-                    <option value="NO" ${f.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
-                    <option value="NO APLICA" ${f.ent_docs_cliente === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
-                  </select>
-                </label>
-             </div>
-          </div>
-          <div><label>RETEFUENTE (Auto)</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA (Auto)</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR Y LIQUIDAR</button>
-        </form>
-      </div>
-    </body>`);
-});
-
-app.post('/guardar/:id', async (req, res) => {
-  try {
-    const flete = Number(req.body.v_flete);
-    const retef = Number(req.body.retefuente);
-    const retei = Number(req.body.reteica);
-    const ant = Number(req.body.valor_anticipo);
-    const sobre = Number(req.body.sobre_anticipo);
-    const desc = Number(req.body.valor_descuento);
-    
-    const saldo = flete - retef - retei - ant - sobre - desc;
-    
-    await Finanza.update({ ...req.body, saldo_a_pagar: saldo }, { where: { cargaId: req.params.id } });
-    res.redirect('/');
-  } catch (e) { res.status(500).send(e.message); }
-});
-
-app.listen(process.env.PORT || 3000);
