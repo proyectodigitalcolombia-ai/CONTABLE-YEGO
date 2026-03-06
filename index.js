@@ -272,7 +272,11 @@ app.get('/', async (req, res) => {
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
-        
+        function colorDias(dias) {
+    if (dias > 30) return 'red'; // Ejemplo de lógica
+    if (dias > 15) return 'orange';
+    return 'green';
+}
         <script>
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
