@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // Campo para el PDF en Base64
+  pdf_reporte: { type: DataTypes.TEXT } 
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -82,7 +82,6 @@ app.get('/', async (req, res) => {
       }
 
       // Cálculo de días sin cumplir
-      let diasSinCumplirCalc = 0;
       let displayDiasSinCumplir = '0 días';
       let colorDiasSinCumplir = '#3b82f6';
 
@@ -264,13 +263,10 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
           
           <td style="${tdStyle}">
-            <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
-              <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; border: 1px solid #3b82f6; width: 80px;">[LIQUIDAR]</button>
-              ${f.pdf_reporte ? 
-                `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold; border: 1px solid #10b981; width: 80px; display: inline-block;">VER PDF</a>` 
-                : `<span style="color: #64748b; font-size: 9px;">SIN PDF</span>`
-              }
-            </div>
+            ${f.pdf_reporte ? 
+              `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold; border: 1px solid #10b981; padding: 4px 8px; display: inline-block;">VER PDF</a>` 
+              : `<span style="color: #64748b; font-weight: bold;">SIN PDF</span>`
+            }
           </td>
         </tr>`;
     }).join('');
@@ -310,7 +306,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
                 <th style="${thStyle}">RETEFUENTE</th><th style="${thStyle}">RETEICA</th>
                 <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO FINAL</th>
                 <th style="${thStyle}">DÍAS SIN PAGAR</th><th style="${thStyle}">DÍAS SIN CUMPLIR</th>
-                <th style="${thStyle}">ACCIÓN / PDF</th>
+                <th style="${thStyle}">DOCUMENTO PDF</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -355,7 +351,6 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
-            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -605,7 +600,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
   } catch (error) { res.status(500).send(error.message); }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 db.sync({ alter: true }).then(() => {
     app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
 }).catch(err => {
