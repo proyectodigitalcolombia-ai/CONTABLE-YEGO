@@ -90,11 +90,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
     colorDiasSinCumplir = '#10b981';
 } else if (c.f_act) {
     try {
-        // 1. Limpiamos el formato: cambiamos "DD-MM-YYYY" a "YYYY/MM/DD" que es más seguro
-        // y manejamos el posible error del "24:00:00"
         let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
-        
-        // Si la hora es 24:xx:xx, la forzamos a 00:xx:xx para que no rompa
         if (fechaString.includes(' 24:')) {
             fechaString = fechaString.replace(' 24:', ' 00:');
         }
@@ -102,14 +98,11 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         const fActualizacion = new Date(fechaString);
         const hoy = new Date();
 
-        // Validamos si después de la limpieza la fecha es válida
         if (!isNaN(fActualizacion.getTime())) {
             hoy.setHours(0, 0, 0, 0);
             fActualizacion.setHours(0, 0, 0, 0);
-            
             const diff = hoy - fActualizacion;
             const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-            
             displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
         } else {
             displayDiasSinCumplir = "0 días";
@@ -269,7 +262,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
 <td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
           <td style="padding: 10px; text-align: center;">
-            <a href="/editar/${c.id}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">[LIQUIDAR]</a>
+            <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
           </td>
         </tr>`;
     }).join('');
@@ -315,8 +308,56 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             <tbody id="tabla-cargas">${filas}</tbody>
           </table>
         </div>
+
+        <div id="modalLiquidacion" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
+          <div style="background:#1e293b; width:80%; max-width:800px; padding:20px; border-radius:12px; border:1px solid #334155; position:relative; max-height:90vh; overflow-y:auto;">
+            <button onclick="cerrarModal()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+            <h2 style="color:#3b82f6; border-bottom:1px solid #334155; padding-bottom:10px;">FORMATO DE LIQUIDACIÓN</h2>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
+              <div>
+                <label style="display:block; font-size:12px; color:#94a3b8;">PLACA</label>
+                <input type="text" id="form-placa" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:white; padding:8px; border-radius:4px;">
+              </div>
+              <div>
+                <label style="display:block; font-size:12px; color:#94a3b8;">FLETE PACTADO</label>
+                <input type="text" id="form-flete" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:#10b981; padding:8px; border-radius:4px; font-weight:bold;">
+              </div>
+              <div>
+                <label style="display:block; font-size:12px; color:#94a3b8;">ORIGEN - DESTINO</label>
+                <input type="text" id="form-ruta" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:white; padding:8px; border-radius:4px;">
+              </div>
+              <div>
+                <label style="display:block; font-size:12px; color:#94a3b8;">DÍAS DE MORA</label>
+                <input type="text" id="form-dias" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:#ef4444; padding:8px; border-radius:4px;">
+              </div>
+            </div>
+
+            <div style="margin-top:30px; background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px dashed #10b981;">
+              <h3 style="margin-top:0; font-size:14px; color:#10b981;">SALDO FINAL CALCULADO</h3>
+              <p id="form-saldo" style="font-size:24px; font-weight:bold; margin:10px 0; color:#10b981;">$0</p>
+            </div>
+          </div>
+        </div>
         
         <script>
+        function abrirLiquidacion(c, f) {
+            document.getElementById('form-placa').value = c.placa;
+            document.getElementById('form-flete').value = '$' + (f.v_flete || c.f_p || 0).toLocaleString('es-CO');
+            document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
+            document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
+            
+            // Arrastrar días sin pagar del TD correspondiente
+            const diasTd = document.getElementById('dias-pago-' + c.id);
+            document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
+
+            document.getElementById('modalLiquidacion').style.display = 'flex';
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalLiquidacion').style.display = 'none';
+        }
+
         function colorDias(dias) {
             if (dias > 30) return '#ef4444'; // Rojo
             if (dias > 15) return '#fbbf24'; // Naranja
@@ -428,7 +469,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
                 })
               });
               if (response.ok) {
-                location.reload(); // Recargar para procesar la lógica de días
+                location.reload(); 
               }
             } catch (e) { 
               console.error("Error al guardar tipo cumplido", e); 
@@ -483,7 +524,6 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
       })
     });
     if (response.ok) {
-       console.log("Estado final actualizado");
        location.reload(); 
     }
   } catch (e) {
@@ -518,11 +558,7 @@ app.post('/actualizar-estado-financiero', async (req, res) => {
 app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
     const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
-    
-    // CALCULO AUTOMATICO RETENCIONES
     const retefuente = Math.round(flete * 0.01);
-    
-    // Lógica Reteica según ciudad
     let tarifaIca = 0.01; 
     const ciudad = (origen || '').toUpperCase();
     if (ciudad.includes("BUENAVENTURA")) tarifaIca = 0.004;
@@ -530,7 +566,6 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
     else if (ciudad.includes("YUMBO") || ciudad.includes("FUNZA")) tarifaIca = 0.005;
     
     const reteica = Math.round(flete * tarifaIca);
-    
     const f = await Finanza.findOne({ where: { cargaId } });
     const sobre = Number(f?.sobre_anticipo || 0);
     const desc = Number(f?.valor_descuento || 0);
@@ -558,15 +593,8 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
     if (tipo_cumplido !== "") {
         updateData.fecha_cump_virtual = new Date().toISOString().split('T')[0];
     }
-    await Finanza.upsert({
-      cargaId,
-      ...data,
-      retefuente,
-      reteica,
-      saldo_a_pagar: saldo
-    });
-    
-    res.redirect('/');
+    await Finanza.upsert(updateData);
+    res.sendStatus(200);
   } catch (error) { res.status(500).send(error.message); }
 });
 
