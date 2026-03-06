@@ -42,7 +42,8 @@ const Finanza = db.define('Finanza', {
   saldo_a_pagar: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
-  dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 }
+  dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
+  pdf_reporte: { type: DataTypes.TEXT } // CAMPO PARA EL PDF
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -261,8 +262,14 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
 </td>
 <td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
-          <td style="padding: 10px; text-align: center;">
-            <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
+          
+          <td style="${tdStyle}">
+            <div style="display: flex; gap: 5px; justify-content: center;">
+              <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
+              ${f.pdf_reporte ? `
+                <a href="data:application/pdf;base64,${f.pdf_reporte}" download="Reporte_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981;">[VER PDF]</a>
+              ` : `<span style="color: #475569;">[SIN PDF]</span>`}
+            </div>
           </td>
         </tr>`;
     }).join('');
@@ -347,7 +354,6 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
-            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -359,9 +365,9 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         function colorDias(dias) {
-            if (dias > 30) return '#ef4444'; // Rojo
-            if (dias > 15) return '#fbbf24'; // Naranja
-            return '#10b981'; // Verde
+            if (dias > 30) return '#ef4444'; 
+            if (dias > 15) return '#fbbf24'; 
+            return '#10b981'; 
         }
 
         function calcularDiasSinPagar(fechaInput, celdaId) {
