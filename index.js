@@ -71,22 +71,20 @@ app.get('/', async (req, res) => {
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
+      // --- LÓGICA DE DÍAS CORREGIDA ---
+      const fechaInicio = c.createdAt ? new Date(c.createdAt) : new Date();
+      const fechaFin = f.estado_final === 'TRANSFERIDO' && f.updatedAt ? new Date(f.updatedAt) : new Date();
+      const diferenciaDias = Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24));
+      const diasSinPagar = diferenciaDias > 0 ? diferenciaDias : 0;
+      const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
+      // -------------------------------
+
       const renderSelectEntrega = (campo, valorActual) => `
         <select onchange="actualizarEntrega(${c.id}, '${campo}', this.value)" style="${selStyle}">
           <option value="SI" ${valorActual === 'SI' ? 'selected' : ''}>SI</option>
           <option value="NO" ${valorActual === 'NO' ? 'selected' : ''}>NO</option>
           <option value="NO APLICA" ${valorActual === 'NO APLICA' ? 'selected' : ''}>NO APLICA</option>
         </select>
-        // Dentro del cargas.map, antes del return del HTML:
-      const fechaInicio = c.createdAt ? new Date(c.createdAt) : new Date();
-      const fechaFin = f.estado_final === 'TRANSFERIDO' && f.updatedAt ? new Date(f.updatedAt) : new Date();
-
-// Cálculo de milisegundos a días
-const diferenciaDias = Math.floor((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24));
-const diasSinPagar = diferenciaDias > 0 ? diferenciaDias : 0;
-
-// Color dinámico para la celda de días
-const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
       `;
 
       return `
@@ -201,7 +199,7 @@ const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
             >
             </td>
           <td id="retefuente-${c.id}" style="${tdStyle}">
-  $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
+   $${ Math.round((Number(f.v_flete) || Number(c.f_p) || 0) * 0.01).toLocaleString('es-CO') }
 </td>
           <td id="reteica-${c.id}" style="${tdStyle}">
   ${(() => {
@@ -414,26 +412,25 @@ const colorDias = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
-  async function actualizarEstadoFinal(cargaId, nuevoEstado) {
-  try {
-    const response = await fetch('/actualizar-entrega', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        cargaId: cargaId, 
-        campo: 'estado_final', 
-        valor: nuevoEstado 
-      })
-    });
-    if (response.ok) {
-       console.log("Estado final actualizado");
-       // Opcional: recargar para aplicar colores de borde
-       location.reload(); 
-    }
-  } catch (e) {
-    console.error("Error:", e);
-  }
-}
+          async function actualizarEstadoFinal(cargaId, nuevoEstado) {
+          try {
+            const response = await fetch('/actualizar-entrega', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                cargaId: cargaId, 
+                campo: 'estado_final', 
+                valor: nuevoEstado 
+              })
+            });
+            if (response.ok) {
+               console.log("Estado final actualizado");
+               location.reload(); 
+            }
+          } catch (e) {
+            console.error("Error:", e);
+          }
+        }
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
@@ -563,29 +560,11 @@ app.get('/editar/:id', async (req, res) => {
                 </label>
              </div>
           </div>
-          <div><label>RETEFUENTE (Auto)</label><input type="number" name="retefuente" value="${f.retefuente}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>RETEICA (Auto)</label><input type="number" name="reteica" value="${f.reteica}" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;"></div>
-          <div><label>VALOR DESCUENTO</label><input type="number" name="valor_descuento" value="${f.valor_descuento}" style="width:100%; padding:8px; background:#0f172a; color:#ef4444; border:1px solid #334155;"></div>
-          <button type="submit" style="grid-column: span 3; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR Y LIQUIDAR</button>
         </form>
       </div>
-    </body>`);
+    </body>
+  `);
 });
 
-app.post('/guardar/:id', async (req, res) => {
-  try {
-    const flete = Number(req.body.v_flete);
-    const retef = Number(req.body.retefuente);
-    const retei = Number(req.body.reteica);
-    const ant = Number(req.body.valor_anticipo);
-    const sobre = Number(req.body.sobre_anticipo);
-    const desc = Number(req.body.valor_descuento);
-    
-    const saldo = flete - retef - retei - ant - sobre - desc;
-    
-    await Finanza.update({ ...req.body, saldo_a_pagar: saldo }, { where: { cargaId: req.params.id } });
-    res.redirect('/');
-  } catch (e) { res.status(500).send(e.message); }
-});
-
-app.listen(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
