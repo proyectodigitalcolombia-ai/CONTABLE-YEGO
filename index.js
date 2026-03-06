@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // CAMPO PARA EL PDF AÑADIDO
+  pdf_reporte: { type: DataTypes.TEXT } // <--- ÚNICO CAMBIO EN MODELO
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -263,10 +263,10 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
 <td id="dias-pago-${c.id}" style="${tdStyle}; color: red;">${diasCalculados} días</td>
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
           <td style="${tdStyle}">
-            <div style="display: flex; gap: 5px; justify-content: center;">
+            <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
               <button onclick="abrirLiquidacion(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${JSON.stringify(f).replace(/"/g, '&quot;')})" style="${selStyle} color: #3b82f6; font-weight: bold; background: transparent; border: none;">[LIQUIDAR]</button>
               ${f.pdf_reporte ? 
-                `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold;">[PDF]</a>` 
+                `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold;">[VER PDF]</a>` 
                 : `<span style="color: #475569;">---</span>`}
             </div>
           </td>
@@ -402,10 +402,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
             let porcentaje = 0;
             if (valorSeleccionado.includes("70%")) porcentaje = 0.70;
-            else if (valorSeleccionado.includes("65%")) porcentaje = 0.65;
             else if (valorSeleccionado.includes("50%")) porcentaje = 0.50;
-            else if (valorSeleccionado.includes("60%")) porcentaje = 0.60;
-            else if (valorSeleccionado.includes("75%")) porcentaje = 0.75;
             else if (valorSeleccionado.includes("100%")) porcentaje = 1;
 
             const valorCalculado = Math.round(flete * porcentaje);
@@ -483,7 +480,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           }
 
         async function formatToMoney(cargaId, input) {
-            let numValue = input.value || 0;
+            let numValue = input.value.replace(/[^0-9]/g, '') || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
@@ -513,7 +510,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         async function formatToMoneyDesc(cargaId, input) {
-            let numValue = input.value || 0;
+            let numValue = input.value.replace(/[^0-9]/g, '') || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
@@ -565,11 +562,9 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
     const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
     const retefuente = Math.round(flete * 0.01);
-    let tarifaIca = 0.01; 
+    let tarifaIca = 0.007; 
     const ciudad = (origen || '').toUpperCase();
     if (ciudad.includes("BUENAVENTURA")) tarifaIca = 0.004;
-    else if (ciudad.includes("CARTAGENA") || ciudad.includes("BARRANQUILLA") || ciudad.includes("SANTA MARTA")) tarifaIca = 0.007;
-    else if (ciudad.includes("YUMBO") || ciudad.includes("FUNZA")) tarifaIca = 0.005;
     
     const reteica = Math.round(flete * tarifaIca);
     const f = await Finanza.findOne({ where: { cargaId } });
@@ -605,8 +600,6 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
-// SOLUCIÓN PARA RENDER: Sincronización automática de columnas faltantes
 db.sync({ alter: true }).then(() => {
     app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
 }).catch(err => {
