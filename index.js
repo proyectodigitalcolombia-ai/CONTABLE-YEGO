@@ -1,13 +1,12 @@
 const express = require('express');
 const { Sequelize, DataTypes, QueryTypes } = require('sequelize');
-require('dotenv').config();
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // ============================================
-// DATABASE CONNECTION
+// DATABASE CONNECTION - Sin dotenv
 // ============================================
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
@@ -85,9 +84,6 @@ const Finanza = db.define('Finanza', {
 // UTILITY FUNCTIONS
 // ============================================
 
-/**
- * Escapa caracteres especiales para seguridad en HTML
- */
 function escapeHtml(text) {
   if (!text) return '';
   const map = {
@@ -100,16 +96,10 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>"']/g, m => map[m]);
 }
 
-/**
- * Formatea valores monetarios
- */
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('es-CO');
 }
 
-/**
- * Obtiene tarifa ICA según origen
- */
 function obtenerTarifaICA(origen) {
   const ciudadUp = (origen || '').toUpperCase();
   for (const [ciudad, tarifa] of Object.entries(TARIFAS_ICA)) {
@@ -120,31 +110,19 @@ function obtenerTarifaICA(origen) {
   return TARIFAS_ICA.DEFAULT;
 }
 
-/**
- * Calcula retención en la fuente (1% del flete)
- */
 function calcularRetefuente(flete) {
   return Math.round(flete * 0.01);
 }
 
-/**
- * Calcula retención ICA
- */
 function calcularReteICA(flete, origen) {
   const tarifa = obtenerTarifaICA(origen);
   return Math.round(flete * tarifa);
 }
 
-/**
- * Calcula saldo a pagar
- */
 function calcularSaldo(flete, retefuente, reteica, valorAnticipo, sobreAnticipo, descuento) {
   return flete - retefuente - reteica - valorAnticipo - Number(sobreAnticipo || 0) - Number(descuento || 0);
 }
 
-/**
- * Genera select de entregas con opciones
- */
 function renderSelectEntrega(cargaId, campo, valorActual) {
   const opciones = ['SI', 'NO', 'NO APLICA'];
   const options = opciones
@@ -156,9 +134,6 @@ function renderSelectEntrega(cargaId, campo, valorActual) {
   </select>`;
 }
 
-/**
- * Genera formulario de anticipo
- */
 function renderSelectAnticipo(cargaId, tipoActual, fletePagar, origen) {
   const opciones = [
     { label: '---', value: '' },
@@ -177,9 +152,6 @@ function renderSelectAnticipo(cargaId, tipoActual, fletePagar, origen) {
   </select>`;
 }
 
-/**
- * Calcula diferencia de días entre dos fechas
- */
 function calcularDias(fechaInicio, fechaFin) {
   const inicio = new Date(fechaInicio);
   const fin = new Date(fechaFin);
@@ -187,9 +159,6 @@ function calcularDias(fechaInicio, fechaFin) {
   return diferencia > 0 ? diferencia : 0;
 }
 
-/**
- * Genera fila de tabla con todos los datos
- */
 function generarFilaCarga(carga, finanza) {
   const f = finanza || {};
   const fletePagar = Number(f.v_flete) > 0 ? Number(f.v_flete) : Number(carga.f_p || 0);
@@ -201,13 +170,11 @@ function generarFilaCarga(carga, finanza) {
   
   const estadoContable = f.est_pago || 'PENDIENTE';
   
-  // Cálculo de días
   const fechaInicio = carga.createdAt ? new Date(carga.createdAt) : new Date();
   const fechaFin = f.estado_final === 'TRANSFERIDO' && f.updatedAt ? new Date(f.updatedAt) : new Date();
   const diasSinPagar = calcularDias(fechaInicio, fechaFin);
   const colorDiasCss = f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#ef4444';
   
-  // Cálculo de retenciones
   const retefuente = calcularRetefuente(fletePagar);
   const reteica = calcularReteICA(fletePagar, carga.orig);
 
@@ -238,8 +205,8 @@ function generarFilaCarga(carga, finanza) {
       </td>
       <td style="${STYLES.TD}">
         <select onchange="actualizarEstadoFinanciero(${carga.id}, this.value)" style="${STYLES.SELECT} width: 100%;">
-          <option value="PENDIENTE" ${estadoContable === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
-          <option value="TRANSFERIDO" ${estadoContable === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
+          <option value="PENDIENTE" ${f.est_pago === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+          <option value="TRANSFERIDO" ${f.est_pago === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
         </select>
       </td>
       <td id="fecha-pago-${carga.id}" style="${STYLES.TD}">${f.fecha_pago_ant || '---'}</td>
@@ -307,98 +274,6 @@ function generarFilaCarga(carga, finanza) {
   return { html, fletePagar, estadoContable };
 }
 
-// ============================================
-// MAIN ROUTES
-// ============================================
-
-app.get('/', async (req, res) => {
-  try {
-    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
-    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
-    const finanzas = await Finanza.findAll();
-
-    let totalPendiente = 0;
-    let filasHtml = '';
-
-    cargas.forEach(carga => {
-      const finanza = finanzas.find(fin => fin.cargaId === carga.id);
-      const { html, fletePagar, estadoContable } = generarFilaCarga(carga, finanza);
-      
-      if (estadoContable === 'PENDIENTE') {
-        totalPendiente += fletePagar;
-      }
-      
-      filasHtml += html;
-    });
-
-    const headerHtml = generarHeaderTabla(filasHtml, totalPendiente);
-    res.send(headerHtml);
-
-  } catch (err) {
-    console.error('Error en GET /:', err);
-    res.status(500).send(`<h2>Error: ${escapeHtml(err.message)}</h2>`);
-  }
-});
-
-/**
- * Genera el encabezado HTML de la tabla
- */
-function generarHeaderTabla(filasHtml, totalPendiente) {
-  const encabezados = [
-    'ID', 'FECHA REGISTRO', 'OFICINA', 'ORIGEN', 'DESTINO', 'CLIENTE',
-    'CONTENEDOR', 'PEDIDO', 'PLACA', 'MUC', 'FLETE A PAGAR',
-    'FLETE A FACTURAR', 'FECHA ACTUALIZACIÓN', 'ESTADO FINAL LOGIS',
-    'TIPO DE ANTICIPO', 'VALOR ANTICIPO', 'SOBRE ANTICIPO', 'ESTADO',
-    'FECHA DE PAGO ANTICIPO', 'TIPO DE CUMPLIDO', 'FECHA CUMPLIDO VIRTUAL',
-    'ENTREGA DE MANIFIESTO', 'ENTREGA DE REMESA', 'ENTREGA DE HOJA DE TIEMPOS',
-    'ENTREGA DE DOCUMENTOS CLIENTE', 'ENTREGA DE FACTURAS',
-    'ENTREGA DE TIRILLA CONTENEDOR VACÍO', 'ENTREGA DE TIQUETE DE CARGUE (GRANEL)',
-    'ENTREGA DE TIQUETE DE DESCARGUE (GRANEL)', '¿EL SERVICIO PRESENTA NOVEDADES?',
-    'OBSERVACION NOVEDAD', 'VALOR DESCUENTO', 'FECHA DE CUMPLIDO DOCUMENTOS',
-    'FECHA DE LEGALIZACIÓN', 'RETEFUENTE', 'RETEICA', 'SALDO A PAGAR',
-    'ESTADO FINAL', 'DÍAS SIN PAGAR', 'DÍAS SIN CUMPLIR', 'ACCIÓN'
-  ];
-
-  const encabezadosHtml = encabezados.map(enc => `<th style="${STYLES.TH}">${enc}</th>`).join('');
-
-  return `<!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>YEGO Sistema Contable</title>
-    </head>
-    <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
-        <h2 style="margin:0; color: #3b82f6;">YEGO SISTEMA CONTABLE</h2>
-        <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
-          <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
-          <b style="color:#f1f5f9; font-size: 20px;">$ ${formatMoney(totalPendiente)}</b>
-        </div>
-      </div>
-
-      <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." 
-             style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline: none;">
-
-      <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
-        <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 6500px;">
-          <thead style="background:#1e40af; color: white; font-size: 10px; text-transform: uppercase;">
-            <tr>${encabezadosHtml}</tr>
-          </thead>
-          <tbody id="tabla-cargas">${filasHtml}</tbody>
-        </table>
-      </div>
-
-      <script>
-        ${obtenerScriptsCliente()}
-      </script>
-    </body>
-    </html>`;
-}
-
-/**
- * Retorna scripts del cliente
- */
 function obtenerScriptsCliente() {
   return `
     const ANTICIPOS_CONFIG = ${JSON.stringify(ANTICIPOS)};
@@ -575,6 +450,92 @@ function obtenerScriptsCliente() {
   `;
 }
 
+function generarHeaderTabla(filasHtml, totalPendiente) {
+  const encabezados = [
+    'ID', 'FECHA REGISTRO', 'OFICINA', 'ORIGEN', 'DESTINO', 'CLIENTE',
+    'CONTENEDOR', 'PEDIDO', 'PLACA', 'MUC', 'FLETE A PAGAR',
+    'FLETE A FACTURAR', 'FECHA ACTUALIZACIÓN', 'ESTADO FINAL LOGIS',
+    'TIPO DE ANTICIPO', 'VALOR ANTICIPO', 'SOBRE ANTICIPO', 'ESTADO',
+    'FECHA DE PAGO ANTICIPO', 'TIPO DE CUMPLIDO', 'FECHA CUMPLIDO VIRTUAL',
+    'ENTREGA DE MANIFIESTO', 'ENTREGA DE REMESA', 'ENTREGA DE HOJA DE TIEMPOS',
+    'ENTREGA DE DOCUMENTOS CLIENTE', 'ENTREGA DE FACTURAS',
+    'ENTREGA DE TIRILLA CONTENEDOR VACÍO', 'ENTREGA DE TIQUETE DE CARGUE (GRANEL)',
+    'ENTREGA DE TIQUETE DE DESCARGUE (GRANEL)', '¿EL SERVICIO PRESENTA NOVEDADES?',
+    'OBSERVACION NOVEDAD', 'VALOR DESCUENTO', 'FECHA DE CUMPLIDO DOCUMENTOS',
+    'FECHA DE LEGALIZACIÓN', 'RETEFUENTE', 'RETEICA', 'SALDO A PAGAR',
+    'ESTADO FINAL', 'DÍAS SIN PAGAR', 'DÍAS SIN CUMPLIR', 'ACCIÓN'
+  ];
+
+  const encabezadosHtml = encabezados.map(enc => `<th style="${STYLES.TH}">${enc}</th>`).join('');
+
+  return `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>YEGO Sistema Contable</title>
+    </head>
+    <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+        <h2 style="margin:0; color: #3b82f6;">YEGO SISTEMA CONTABLE</h2>
+        <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
+          <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
+          <b style="color:#f1f5f9; font-size: 20px;">$ ${formatMoney(totalPendiente)}</b>
+        </div>
+      </div>
+
+      <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." 
+             style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline: none;">
+
+      <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
+        <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 6500px;">
+          <thead style="background:#1e40af; color: white; font-size: 10px; text-transform: uppercase;">
+            <tr>${encabezadosHtml}</tr>
+          </thead>
+          <tbody id="tabla-cargas">${filasHtml}</tbody>
+        </table>
+      </div>
+
+      <script>
+        ${obtenerScriptsCliente()}
+      </script>
+    </body>
+    </html>`;
+}
+
+// ============================================
+// MAIN ROUTES
+// ============================================
+
+app.get('/', async (req, res) => {
+  try {
+    const sql = `SELECT * FROM "Cargas" WHERE placa IS NOT NULL AND placa != '' ORDER BY id DESC LIMIT 150`;
+    const cargas = await db.query(sql, { type: QueryTypes.SELECT });
+    const finanzas = await Finanza.findAll();
+
+    let totalPendiente = 0;
+    let filasHtml = '';
+
+    cargas.forEach(carga => {
+      const finanza = finanzas.find(fin => fin.cargaId === carga.id);
+      const { html, fletePagar, estadoContable } = generarFilaCarga(carga, finanza);
+      
+      if (estadoContable === 'PENDIENTE') {
+        totalPendiente += fletePagar;
+      }
+      
+      filasHtml += html;
+    });
+
+    const headerHtml = generarHeaderTabla(filasHtml, totalPendiente);
+    res.send(headerHtml);
+
+  } catch (err) {
+    console.error('Error en GET /:', err);
+    res.status(500).send(`<h2>Error: ${escapeHtml(err.message)}</h2>`);
+  }
+});
+
 // ============================================
 // API ROUTES - ACTUALIZACIÓN
 // ============================================
@@ -583,12 +544,10 @@ app.post('/actualizar-entrega', async (req, res) => {
   try {
     const { cargaId, campo, valor } = req.body;
 
-    // Validación
     if (!cargaId || !campo) {
       return res.status(400).json({ error: 'cargaId y campo son requeridos' });
     }
 
-    // Lista blanca de campos permitidos
     const camposPermitidos = [
       'v_flete', 'v_facturar', 'est_pago', 'tipo_anticipo', 'valor_anticipo',
       'sobre_anticipo', 'estado_ant', 'fecha_pago_ant', 'tipo_cumplido',
@@ -642,7 +601,6 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
       return res.status(400).json({ error: 'cargaId y flete son requeridos' });
     }
 
-    // FÓRMULAS ORIGINALES PRESERVADAS
     const retefuente = calcularRetefuente(flete);
     const reteica = calcularReteICA(flete, origen);
     
@@ -711,7 +669,103 @@ app.get('/editar/:id', async (req, res) => {
 
     const [finanza] = await Finanza.findOrCreate({ where: { cargaId } });
 
-    const formHtml = generarFormularioEdicion(cargaId, finanza);
+    const opcionesAnticipo = Object.keys(ANTICIPOS).map(tipo => 
+      `<option value="${tipo}" ${finanza.tipo_anticipo === tipo ? 'selected' : ''}>${tipo}</option>`
+    ).join('');
+
+    const formHtml = `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Editar Carga</title>
+      </head>
+      <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
+        <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
+          <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${cargaId}</h2>
+          
+          <form action="/guardar/${cargaId}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+            <div>
+              <label>FLETE PAGAR</label>
+              <input type="number" name="v_flete" value="${finanza.v_flete}" step="0.01" 
+                     style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;">
+            </div>
+
+            <div>
+              <label>FLETE FACTURAR</label>
+              <input type="number" name="v_facturar" value="${finanza.v_facturar}" step="0.01" 
+                     style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;">
+            </div>
+
+            <div>
+              <label>Tipo de Anticipo:</label>
+              <select name="tipo_anticipo" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+                <option value="">Seleccione una opción...</option>
+                ${opcionesAnticipo}
+              </select>
+            </div>
+
+            <div>
+              <label>VALOR ANTICIPO</label>
+              <input type="number" name="valor_anticipo" value="${finanza.valor_anticipo}" 
+                     style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            </div>
+
+            <div>
+              <label>SOBRE ANTICIPO</label>
+              <input type="number" name="sobre_anticipo" value="${finanza.sobre_anticipo}" 
+                     style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            </div>
+
+            <div>
+              <label>FECHA PAGO ANT</label>
+              <input type="date" name="fecha_pago_ant" value="${finanza.fecha_pago_ant || ''}" 
+                     style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            </div>
+
+            <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+              <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS</p>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
+                <label>MANIFIESTO
+                  <select name="ent_manifiesto" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${finanza.ent_manifiesto === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${finanza.ent_manifiesto === 'NO' ? 'selected' : ''}>NO</option>
+                  </select>
+                </label>
+                <label>REMESA
+                  <select name="ent_remesa" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${finanza.ent_remesa === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${finanza.ent_remesa === 'NO' ? 'selected' : ''}>NO</option>
+                  </select>
+                </label>
+                <label>HOJA DE TIEMPOS
+                  <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${finanza.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${finanza.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
+                  </select>
+                </label>
+                <label>DOCUMENTOS CLIENTE
+                  <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
+                    <option value="SI" ${finanza.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
+                    <option value="NO" ${finanza.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div style="grid-column: span 3; text-align: center; gap: 10px; display: flex;">
+              <button type="submit" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                GUARDAR
+              </button>
+              <a href="/" style="flex: 1; padding: 10px; background: #3b82f6; color: white; text-decoration: none; text-align: center; border-radius: 4px; font-weight: bold;">
+                VOLVER
+              </a>
+            </div>
+          </form>
+        </div>
+      </body>
+      </html>`;
+
     res.send(formHtml);
 
   } catch (err) {
@@ -719,108 +773,6 @@ app.get('/editar/:id', async (req, res) => {
     res.status(500).send(`<h2>Error: ${escapeHtml(err.message)}</h2>`);
   }
 });
-
-/**
- * Genera formulario de edición
- */
-function generarFormularioEdicion(cargaId, finanza) {
-  const opcionesAnticipo = Object.keys(ANTICIPOS).map(tipo => 
-    `<option value="${tipo}" ${finanza.tipo_anticipo === tipo ? 'selected' : ''}>${tipo}</option>`
-  ).join('');
-
-  return `<!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Editar Carga</title>
-    </head>
-    <body style="background:#0f172a; color:#f1f5f9; font-family:sans-serif; padding: 20px;">
-      <div style="max-width:1000px; margin:auto; background:#1e293b; padding:30px; border-radius:12px; border:1px solid #3b82f6;">
-        <h2 style="color:#3b82f6; text-align: center; margin-bottom:25px;">GESTIÓN INTEGRAL CARGA #${cargaId}</h2>
-        
-        <form action="/guardar/${cargaId}" method="POST" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-          <div>
-            <label>FLETE PAGAR</label>
-            <input type="number" name="v_flete" value="${finanza.v_flete}" step="0.01" 
-                   style="width:100%; padding:8px; background:#0f172a; color:#10b981; border:1px solid #334155;">
-          </div>
-
-          <div>
-            <label>FLETE FACTURAR</label>
-            <input type="number" name="v_facturar" value="${finanza.v_facturar}" step="0.01" 
-                   style="width:100%; padding:8px; background:#0f172a; color:#3b82f6; border:1px solid #334155;">
-          </div>
-
-          <div>
-            <label>Tipo de Anticipo:</label>
-            <select name="tipo_anticipo" style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
-              <option value="">Seleccione una opción...</option>
-              ${opcionesAnticipo}
-            </select>
-          </div>
-
-          <div>
-            <label>VALOR ANTICIPO</label>
-            <input type="number" name="valor_anticipo" value="${finanza.valor_anticipo}" 
-                   style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
-          </div>
-
-          <div>
-            <label>SOBRE ANTICIPO</label>
-            <input type="number" name="sobre_anticipo" value="${finanza.sobre_anticipo}" 
-                   style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
-          </div>
-
-          <div>
-            <label>FECHA PAGO ANT</label>
-            <input type="date" name="fecha_pago_ant" value="${finanza.fecha_pago_ant || ''}" 
-                   style="width:100%; padding:8px; background:#0f172a; color:white; border:1px solid #334155;">
-          </div>
-
-          <div style="grid-column: span 3; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
-            <p style="margin:0 0 10px; color:#3b82f6; font-weight:bold;">CONTROL DE DOCUMENTOS</p>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
-              <label>MANIFIESTO
-                <select name="ent_manifiesto" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                  <option value="SI" ${finanza.ent_manifiesto === 'SI' ? 'selected' : ''}>SI</option>
-                  <option value="NO" ${finanza.ent_manifiesto === 'NO' ? 'selected' : ''}>NO</option>
-                </select>
-              </label>
-              <label>REMESA
-                <select name="ent_remesa" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                  <option value="SI" ${finanza.ent_remesa === 'SI' ? 'selected' : ''}>SI</option>
-                  <option value="NO" ${finanza.ent_remesa === 'NO' ? 'selected' : ''}>NO</option>
-                </select>
-              </label>
-              <label>HOJA DE TIEMPOS
-                <select name="ent_hoja_tiempos" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                  <option value="SI" ${finanza.ent_hoja_tiempos === 'SI' ? 'selected' : ''}>SI</option>
-                  <option value="NO" ${finanza.ent_hoja_tiempos === 'NO' ? 'selected' : ''}>NO</option>
-                </select>
-              </label>
-              <label>DOCUMENTOS CLIENTE
-                <select name="ent_docs_cliente" style="width:100%; background:#1e293b; color:white; border:1px solid #334155;">
-                  <option value="SI" ${finanza.ent_docs_cliente === 'SI' ? 'selected' : ''}>SI</option>
-                  <option value="NO" ${finanza.ent_docs_cliente === 'NO' ? 'selected' : ''}>NO</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div style="grid-column: span 3; text-align: center; gap: 10px; display: flex;">
-            <button type="submit" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-              GUARDAR
-            </button>
-            <a href="/" style="flex: 1; padding: 10px; background: #3b82f6; color: white; text-decoration: none; text-align: center; border-radius: 4px; font-weight: bold;">
-              VOLVER
-            </a>
-          </div>
-        </form>
-      </div>
-    </body>
-    </html>`;
-}
 
 // ============================================
 // INICIALIZACIÓN DEL SERVIDOR
@@ -831,7 +783,6 @@ app.listen(PORT, () => {
   console.log(`✅ Servidor YEGO Sistema Contable ejecutándose en puerto ${PORT}`);
 });
 
-// Manejo de errores no capturados
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Rechazo no manejado en:', promise, 'razón:', reason);
 });
