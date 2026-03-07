@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } 
+  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO: CAMPO AÑADIDO PARA PDF
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -82,8 +82,9 @@ app.get('/', async (req, res) => {
       }
 
       // Cálculo de días sin cumplir
-      let displayDiasSinCumplir = '0 días';
-      let colorDiasSinCumplir = '#3b82f6';
+      let diasSinCumplirCalc = 0;
+let displayDiasSinCumplir = '0 días';
+let colorDiasSinCumplir = '#3b82f6';
 
 if (f.tipo_cumplido && f.tipo_cumplido !== "") {
     displayDiasSinCumplir = 'VIAJE CUMPLIDO';
@@ -265,7 +266,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           <td style="${tdStyle}">
             ${f.pdf_reporte ? 
               `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold; border: 1px solid #10b981; padding: 4px 8px; display: inline-block;">VER PDF</a>` 
-              : `<span style="color: #64748b; font-weight: bold;">SIN PDF</span>`
+              : `<span style="color: #64748b; font-weight: bold; font-size: 10px;">SIN PDF</span>`
             }
           </td>
         </tr>`;
@@ -351,6 +352,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
+            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -362,9 +364,9 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         function colorDias(dias) {
-            if (dias > 30) return '#ef4444'; 
-            if (dias > 15) return '#fbbf24'; 
-            return '#10b981'; 
+            if (dias > 30) return '#ef4444'; // Rojo
+            if (dias > 15) return '#fbbf24'; // Naranja
+            return '#10b981'; // Verde
         }
 
         function calcularDiasSinPagar(fechaInput, celdaId) {
@@ -480,7 +482,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           }
 
         async function formatToMoney(cargaId, input) {
-            let numValue = input.value.replace(/[^0-9]/g, '') || 0;
+            let numValue = input.value || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'sobre_anticipo', numValue);
@@ -510,30 +512,29 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         async function formatToMoneyDesc(cargaId, input) {
-            let numValue = input.value.replace(/[^0-9]/g, '') || 0;
+            let numValue = input.value || 0;
             input.type = 'text';
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
-
-        async function actualizarEstadoFinal(cargaId, nuevoEstado) {
-          try {
-            const response = await fetch('/actualizar-entrega', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                cargaId: cargaId, 
-                campo: 'estado_final', 
-                valor: nuevoEstado 
-              })
-            });
-            if (response.ok) {
-               location.reload(); 
-            }
-          } catch (e) {
-            console.error("Error:", e);
-          }
-        }
+  async function actualizarEstadoFinal(cargaId, nuevoEstado) {
+  try {
+    const response = await fetch('/actualizar-entrega', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        cargaId: cargaId, 
+        campo: 'estado_final', 
+        valor: nuevoEstado 
+      })
+    });
+    if (response.ok) {
+       location.reload(); 
+    }
+  } catch (e) {
+    console.error("Error:", e);
+  }
+}
         </script>
       </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
@@ -563,9 +564,11 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
   try {
     const { cargaId, tipo_anticipo, valor_anticipo, flete, origen } = req.body;
     const retefuente = Math.round(flete * 0.01);
-    let tarifaIca = 0.007; 
+    let tarifaIca = 0.01; 
     const ciudad = (origen || '').toUpperCase();
     if (ciudad.includes("BUENAVENTURA")) tarifaIca = 0.004;
+    else if (ciudad.includes("CARTAGENA") || ciudad.includes("BARRANQUILLA") || ciudad.includes("SANTA MARTA")) tarifaIca = 0.007;
+    else if (ciudad.includes("YUMBO") || ciudad.includes("FUNZA")) tarifaIca = 0.005;
     
     const reteica = Math.round(flete * tarifaIca);
     const f = await Finanza.findOne({ where: { cargaId } });
@@ -600,9 +603,5 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
   } catch (error) { res.status(500).send(error.message); }
 });
 
-const PORT = process.env.PORT || 10000;
-db.sync({ alter: true }).then(() => {
-    app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
-}).catch(err => {
-    console.error("Error al sincronizar DB:", err);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
