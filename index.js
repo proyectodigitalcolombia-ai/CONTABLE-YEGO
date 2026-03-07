@@ -5,16 +5,10 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// CONFIGURACIÓN DE BASE DE DATOS (Misma URL que usa la App de Python)
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
-  dialectOptions: { 
-    ssl: { 
-      require: true, 
-      rejectUnauthorized: false 
-    } 
-  }
+  dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
 });
 
 // MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
@@ -49,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO: CAMPO PARA EL PDF GENERADO
+  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO AGREGADO PARA EL PDF
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -89,37 +83,37 @@ app.get('/', async (req, res) => {
 
       // Cálculo de días sin cumplir
       let diasSinCumplirCalc = 0;
-let displayDiasSinCumplir = '0 días';
-let colorDiasSinCumplir = '#3b82f6';
+      let displayDiasSinCumplir = '0 días';
+      let colorDiasSinCumplir = '#3b82f6';
 
-if (f.tipo_cumplido && f.tipo_cumplido !== "") {
-    displayDiasSinCumplir = 'VIAJE CUMPLIDO';
-    colorDiasSinCumplir = '#10b981';
-} else if (c.f_act) {
-    try {
-        let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
-        if (fechaString.includes(' 24:')) {
-            fechaString = fechaString.replace(' 24:', ' 00:');
-        }
+      if (f.tipo_cumplido && f.tipo_cumplido !== "") {
+          displayDiasSinCumplir = 'VIAJE CUMPLIDO';
+          colorDiasSinCumplir = '#10b981';
+      } else if (c.f_act) {
+          try {
+              let fechaString = c.f_act.replace(/-/g, '/').replace(',', '');
+              if (fechaString.includes(' 24:')) {
+                  fechaString = fechaString.replace(' 24:', ' 00:');
+              }
 
-        const fActualizacion = new Date(fechaString);
-        const hoy = new Date();
+              const fActualizacion = new Date(fechaString);
+              const hoy = new Date();
 
-        if (!isNaN(fActualizacion.getTime())) {
-            hoy.setHours(0, 0, 0, 0);
-            fActualizacion.setHours(0, 0, 0, 0);
-            const diff = hoy - fActualizacion;
-            const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-            displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
-        } else {
-            displayDiasSinCumplir = "0 días";
-        }
-    } catch (e) {
-        displayDiasSinCumplir = "0 días";
-    }
-} else {
-    displayDiasSinCumplir = "0 días";
-}
+              if (!isNaN(fActualizacion.getTime())) {
+                  hoy.setHours(0, 0, 0, 0);
+                  fActualizacion.setHours(0, 0, 0, 0);
+                  const diff = hoy - fActualizacion;
+                  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+                  displayDiasSinCumplir = (dias > 0 ? dias : 0) + " días";
+              } else {
+                  displayDiasSinCumplir = "0 días";
+              }
+          } catch (e) {
+              displayDiasSinCumplir = "0 días";
+          }
+      } else {
+          displayDiasSinCumplir = "0 días";
+      }
 
       const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
       const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
@@ -270,10 +264,12 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
           <td id="dias-cumplir-${c.id}" style="${tdStyle} color: ${colorDiasSinCumplir};">${displayDiasSinCumplir}</td>
           
           <td style="${tdStyle}">
-            ${f.pdf_reporte ? 
-              `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration: none; color: #10b981; font-weight: bold; border: 1px solid #10b981; padding: 4px 8px; display: inline-block;">VER PDF</a>` 
-              : `<span style="color: #64748b; font-weight: bold; font-size: 10px;">SIN PDF</span>`
-            }
+            <div style="display:flex; justify-content:center; align-items:center; min-width:90px;">
+              ${f.pdf_reporte ? 
+                `<a href="data:application/pdf;base64,${f.pdf_reporte}" download="Cumplido_${c.muc}.pdf" style="${selStyle} text-decoration:none; color:#10b981; font-weight:bold; border:1px solid #10b981; padding:6px 12px; border-radius:6px; background:rgba(16,185,129,0.1);">VER PDF</a>` 
+                : `<span style="color:#64748b; font-weight:bold; font-size:10px; text-transform:uppercase;">SIN PDF</span>`
+              }
+            </div>
           </td>
         </tr>`;
     }).join('');
@@ -313,7 +309,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
                 <th style="${thStyle}">RETEFUENTE</th><th style="${thStyle}">RETEICA</th>
                 <th style="${thStyle}">SALDO A PAGAR</th><th style="${thStyle}">ESTADO FINAL</th>
                 <th style="${thStyle}">DÍAS SIN PAGAR</th><th style="${thStyle}">DÍAS SIN CUMPLIR</th>
-                <th style="${thStyle}">DOCUMENTO PDF</th>
+                <th style="${thStyle}">REPORTE PDF</th>
               </tr>
             </thead>
             <tbody id="tabla-cargas">${filas}</tbody>
@@ -358,7 +354,6 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
-            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -370,9 +365,9 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         function colorDias(dias) {
-            if (dias > 30) return '#ef4444'; // Rojo
-            if (dias > 15) return '#fbbf24'; // Naranja
-            return '#10b981'; // Verde
+            if (dias > 30) return '#ef4444'; 
+            if (dias > 15) return '#fbbf24'; 
+            return '#10b981'; 
         }
 
         function calcularDiasSinPagar(fechaInput, celdaId) {
@@ -609,7 +604,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
   } catch (error) { res.status(500).send(error.message); }
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 db.sync({ alter: true }).then(() => {
     app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
 });
