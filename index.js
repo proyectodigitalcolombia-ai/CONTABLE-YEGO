@@ -43,7 +43,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO: CAMPO AÑADIDO PARA PDF
+  pdf_reporte: { type: DataTypes.TEXT } // Se asegura la existencia de este campo para el PDF
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
