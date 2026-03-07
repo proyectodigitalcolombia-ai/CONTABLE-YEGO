@@ -5,10 +5,16 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// CONFIGURACIÓN DE BASE DE DATOS (Misma URL que usa la App de Python)
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
-  dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
+  dialectOptions: { 
+    ssl: { 
+      require: true, 
+      rejectUnauthorized: false 
+    } 
+  }
 });
 
 // MODELO COMPLETO CON LOS 30+ CAMPOS DE GESTIÓN
@@ -43,7 +49,7 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } 
+  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO: CAMPO PARA EL PDF GENERADO
 }, { tableName: 'Yego_Finanzas' });
 
 // Función auxiliar para el cambio de estado visual (Chulo/X)
@@ -352,6 +358,7 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
             document.getElementById('form-saldo').innerText = '$' + (f.saldo_a_pagar || 0).toLocaleString('es-CO');
             
+            // Arrastrar días sin pagar del TD correspondiente
             const diasTd = document.getElementById('dias-pago-' + c.id);
             document.getElementById('form-dias').value = diasTd ? diasTd.innerText : '0 días';
 
@@ -363,9 +370,9 @@ if (f.tipo_cumplido && f.tipo_cumplido !== "") {
         }
 
         function colorDias(dias) {
-            if (dias > 30) return '#ef4444'; 
-            if (dias > 15) return '#fbbf24'; 
-            return '#10b981'; 
+            if (dias > 30) return '#ef4444'; // Rojo
+            if (dias > 15) return '#fbbf24'; // Naranja
+            return '#10b981'; // Verde
         }
 
         function calcularDiasSinPagar(fechaInput, celdaId) {
@@ -602,5 +609,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
   } catch (error) { res.status(500).send(error.message); }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+const PORT = process.env.PORT || 10000;
+db.sync({ alter: true }).then(() => {
+    app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+});
