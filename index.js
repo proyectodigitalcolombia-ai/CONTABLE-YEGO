@@ -68,6 +68,12 @@ app.get('/', async (req, res) => {
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
+      // AUTOMATIZACIÓN: Si hay PDF pero no hay tipo de cumplido, forzamos VIRTUAL visualmente
+      let valorTipoCumplido = f.tipo_cumplido;
+      if (f.pdf_reporte && (!f.tipo_cumplido || f.tipo_cumplido === "")) {
+          valorTipoCumplido = "VIRTUAL";
+      }
+
       let diasCalculados = 0;
       if (f.fecha_cump_docs) {
           const fCumplido = new Date(f.fecha_cump_docs);
@@ -82,7 +88,7 @@ app.get('/', async (req, res) => {
       let displayDiasSinCumplir = '0 días';
       let colorDiasSinCumplir = '#3b82f6';
 
-      if (f.tipo_cumplido && f.tipo_cumplido !== "") {
+      if (valorTipoCumplido === "VIRTUAL" || valorTipoCumplido === "FÍSICO") {
           displayDiasSinCumplir = 'VIAJE CUMPLIDO';
           colorDiasSinCumplir = '#10b981';
       } else if (c.f_act) {
@@ -173,9 +179,9 @@ app.get('/', async (req, res) => {
 
           <td style="${tdStyle}">
             <select onchange="actualizarTipoCumplido(${c.id}, this.value)" style="${selStyle}">
-              <option value="" ${!f.tipo_cumplido ? 'selected' : ''}>---</option>
-              <option value="VIRTUAL" ${f.tipo_cumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
-              <option value="FÍSICO" ${f.tipo_cumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
+              <option value="" ${!valorTipoCumplido ? 'selected' : ''}>---</option>
+              <option value="VIRTUAL" ${valorTipoCumplido === 'VIRTUAL' ? 'selected' : ''}>VIRTUAL</option>
+              <option value="FÍSICO" ${valorTipoCumplido === 'FÍSICO' ? 'selected' : ''}>FÍSICO</option>
             </select>
           </td>
 
