@@ -23,7 +23,7 @@ const Finanza = db.define('Finanza', {
   estado_ant: { type: DataTypes.STRING },
   fecha_pago_ant: { type: DataTypes.DATEONLY },
   tipo_cumplido: { type: DataTypes.STRING },
-  fecha_cump_virtual: { type: DataTypes.DATEONLY },
+  fecha_cump_virtual: { type: DataTypes.STRING }, // CAMBIO: Se usa String para almacenar Hora Exacta
   ent_manifiesto: { type: DataTypes.STRING, defaultValue: 'NO' },
   ent_remesa: { type: DataTypes.STRING, defaultValue: 'NO' },
   ent_hoja_tiempos: { type: DataTypes.STRING, defaultValue: 'NO' },
@@ -68,7 +68,6 @@ app.get('/', async (req, res) => {
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
-      // AUTOMATIZACIÓN: Si hay PDF pero no hay tipo de cumplido, forzamos VIRTUAL visualmente
       let valorTipoCumplido = f.tipo_cumplido;
       if (f.pdf_reporte && (!f.tipo_cumplido || f.tipo_cumplido === "")) {
           valorTipoCumplido = "VIRTUAL";
@@ -185,7 +184,7 @@ app.get('/', async (req, res) => {
             </select>
           </td>
 
-          <td id="fecha-virtual-${c.id}" style="${tdStyle}">
+          <td id="fecha-virtual-${c.id}" style="${tdStyle}; color: #10b981;">
             ${f.fecha_cump_virtual || '---'}
           </td>
           <td style="${tdStyle}">${renderSelectEntrega('ent_manifiesto', f.ent_manifiesto)}</td>
@@ -397,7 +396,7 @@ app.get('/', async (req, res) => {
                 body: JSON.stringify({ cargaId, campo, valor })
               });
               if(res.ok && (campo === 'sobre_anticipo' || campo === 'valor_descuento')) {
-                location.reload(); // Recargar para actualizar el saldo a pagar
+                location.reload(); 
               }
             } catch (e) { console.error("Error al actualizar entrega", e); }
           }
@@ -547,21 +546,16 @@ app.get('/', async (req, res) => {
 app.post('/actualizar-entrega', async (req, res) => {
   try {
     const { cargaId, campo, valor } = req.body;
-    
-    // Recuperar datos actuales para el recálculo del saldo si es necesario
     const f = await Finanza.findOne({ where: { cargaId } });
     const updateData = { [campo]: valor };
     
-    // Si se modifica sobre_anticipo o valor_descuento, recalculamos el saldo
     if (campo === 'sobre_anticipo' || campo === 'valor_descuento') {
       const fBase = Number(f?.v_flete || 0);
       const ant = Number(f?.valor_anticipo || 0);
       const rf = Number(f?.retefuente || 0);
       const ri = Number(f?.reteica || 0);
-      
       const nuevoSobre = campo === 'sobre_anticipo' ? Number(valor) : Number(f?.sobre_anticipo || 0);
       const nuevoDesc = campo === 'valor_descuento' ? Number(valor) : Number(f?.valor_descuento || 0);
-      
       updateData.saldo_a_pagar = fBase - rf - ri - ant - nuevoSobre - nuevoDesc;
     }
 
@@ -614,13 +608,23 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
   }
 });
 
+// ENDPOINT ACTUALIZADO CON HORA EXACTA COLOMBIA
 app.post('/actualizar-tipo-cumplido', async (req, res) => {
   try {
     const { cargaId, tipo_cumplido } = req.body;
     const updateData = { cargaId, tipo_cumplido };
-    if (tipo_cumplido !== "") {
-        updateData.fecha_cump_virtual = new Date().toISOString().split('T')[0];
+    
+    if (tipo_cumplido === "VIRTUAL" || tipo_cumplido === "FÍSICO") {
+        const ahora = new Date();
+        // Ajuste a zona horaria de Colombia (UTC-5)
+        const fechaHoraExacta = ahora.toLocaleString('es-CO', { 
+            timeZone: 'America/Bogota',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+        updateData.fecha_cump_virtual = fechaHoraExacta;
     }
+    
     await Finanza.upsert(updateData);
     res.sendStatus(200);
   } catch (error) { res.status(500).send(error.message); }
