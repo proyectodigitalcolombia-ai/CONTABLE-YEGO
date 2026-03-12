@@ -43,10 +43,9 @@ const Finanza = db.define('Finanza', {
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
   dias_sin_cumplir: { type: DataTypes.INTEGER, defaultValue: 0 },
-  pdf_reporte: { type: DataTypes.TEXT } // CAMBIO AGREGADO PARA EL PDF
+  pdf_reporte: { type: DataTypes.TEXT } 
 }, { tableName: 'Yego_Finanzas' });
 
-// Función auxiliar para el cambio de estado visual (Chulo/X)
 const statusCheck = (val) => {
   if (val === 'SI') return '<span style="color: #10b981;">✅ SI</span>';
   if (val === 'NO') return '<span style="color: #ef4444;">❌ NO</span>';
@@ -69,7 +68,6 @@ app.get('/', async (req, res) => {
       const estadoContable = f.est_pago || "PENDIENTE";
       if(estadoContable === 'PENDIENTE') totalPendiente += fletePagar;
 
-      // Cálculo de días sin pagar
       let diasCalculados = 0;
       if (f.fecha_cump_docs) {
           const fCumplido = new Date(f.fecha_cump_docs);
@@ -81,8 +79,6 @@ app.get('/', async (req, res) => {
           if (diasCalculados < 0) diasCalculados = 0;
       }
 
-      // Cálculo de días sin cumplir
-      let diasSinCumplirCalc = 0;
       let displayDiasSinCumplir = '0 días';
       let colorDiasSinCumplir = '#3b82f6';
 
@@ -95,10 +91,8 @@ app.get('/', async (req, res) => {
               if (fechaString.includes(' 24:')) {
                   fechaString = fechaString.replace(' 24:', ' 00:');
               }
-
               const fActualizacion = new Date(fechaString);
               const hoy = new Date();
-
               if (!isNaN(fActualizacion.getTime())) {
                   hoy.setHours(0, 0, 0, 0);
                   fActualizacion.setHours(0, 0, 0, 0);
@@ -391,11 +385,14 @@ app.get('/', async (req, res) => {
 
           async function actualizarEntrega(cargaId, campo, valor) {
             try {
-              await fetch('/actualizar-entrega', {
+              const res = await fetch('/actualizar-entrega', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cargaId, campo, valor })
               });
+              if(res.ok && (campo === 'sobre_anticipo' || campo === 'valor_descuento')) {
+                location.reload(); // Recargar para actualizar el saldo a pagar
+              }
             } catch (e) { console.error("Error al actualizar entrega", e); }
           }
 
@@ -544,7 +541,25 @@ app.get('/', async (req, res) => {
 app.post('/actualizar-entrega', async (req, res) => {
   try {
     const { cargaId, campo, valor } = req.body;
-    await Finanza.upsert({ cargaId, [campo]: valor });
+    
+    // Recuperar datos actuales para el recálculo del saldo si es necesario
+    const f = await Finanza.findOne({ where: { cargaId } });
+    const updateData = { [campo]: valor };
+    
+    // Si se modifica sobre_anticipo o valor_descuento, recalculamos el saldo
+    if (campo === 'sobre_anticipo' || campo === 'valor_descuento') {
+      const fBase = Number(f?.v_flete || 0);
+      const ant = Number(f?.valor_anticipo || 0);
+      const rf = Number(f?.retefuente || 0);
+      const ri = Number(f?.reteica || 0);
+      
+      const nuevoSobre = campo === 'sobre_anticipo' ? Number(valor) : Number(f?.sobre_anticipo || 0);
+      const nuevoDesc = campo === 'valor_descuento' ? Number(valor) : Number(f?.valor_descuento || 0);
+      
+      updateData.saldo_a_pagar = fBase - rf - ri - ant - nuevoSobre - nuevoDesc;
+    }
+
+    await Finanza.upsert({ cargaId, ...updateData });
     res.sendStatus(200);
   } catch (error) { res.status(500).send(error.message); }
 });
@@ -581,6 +596,7 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
         cargaId, 
         tipo_anticipo, 
         valor_anticipo,
+        v_flete: flete,
         retefuente,
         reteica,
         saldo_a_pagar: saldo
