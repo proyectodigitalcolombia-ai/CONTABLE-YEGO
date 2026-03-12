@@ -1,6 +1,18 @@
 const express = require('express');
 const { Sequelize, DataTypes, QueryTypes } = require('sequelize');
+const cors = require('cors'); // Requerido para desbloquear el acceso entre dominios
 const app = express();
+
+// --- CONFIGURACIÓN DE SEGURIDAD SAFENODE (CORS) ---
+// Esto permite que appcumplidos.onrender.com pueda solicitar saldos y estados
+app.use(cors({
+  origin: [
+    'https://appcumplidos.onrender.com',
+    'http://localhost:10000'
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -52,6 +64,36 @@ const statusCheck = (val) => {
   if (val === 'NO APLICA') return '<span style="color: #94a3b8;">⚠️ N/A</span>';
   return val || '---';
 };
+
+// --- RUTA BRIDGE API: CONSULTA DINÁMICA DE MUC PARA EL DASHBOARD PYTHON ---
+app.get('/api/consultar_muc/:muc_buscado', async (req, res) => {
+  try {
+    const { muc_buscado } = req.params;
+    const sql = `
+      SELECT c.muc, f.saldo_a_pagar, f.estado_final 
+      FROM "Cargas" c
+      LEFT JOIN "Yego_Finanzas" f ON c.id = f."cargaId"
+      WHERE c.muc = :muc 
+      LIMIT 1
+    `;
+    const result = await db.query(sql, {
+      replacements: { muc: muc_buscado },
+      type: QueryTypes.SELECT
+    });
+
+    if (result.length > 0) {
+      const data = result[0];
+      return res.json({
+        encontrado: true,
+        saldo: `$ ${Number(data.saldo_a_pagar || 0).toLocaleString('es-CO')}`,
+        estado: data.estado_final || "PENDIENTE"
+      });
+    }
+    res.json({ encontrado: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.get('/', async (req, res) => {
   try {
