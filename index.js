@@ -72,7 +72,7 @@ app.get('/api/consultar_muc/:muc_buscado', async (req, res) => {
     const sql = `
       SELECT c.muc, f.saldo_a_pagar, f.estado_final 
       FROM "Cargas" c
-      LEFT JOIN "Yego_Finanzas" f ON c.id = f."cargaId"
+      LEFT JOIN "Sarvi_Finanzas" f ON c.id = f."cargaId"
       WHERE c.muc = :muc 
       LIMIT 1
     `;
@@ -320,7 +320,7 @@ app.get('/', async (req, res) => {
     res.send(`
       <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
-          <h2 style="margin:0; color: #3b82f6;">YEGO SISTEMA CONTABLE</h2>
+          <h2 style="margin:0; color: #3b82f6;">TRANSPORTES SARVI - SISTEMA CONTABLE</h2>
           <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
             <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
             <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
