@@ -331,15 +331,7 @@ app.get('/', async (req, res) => {
         <body style="background:#0D1117; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: linear-gradient(135deg, #0d1e30 0%, #001e3c 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #1a3d56; box-shadow: 0 2px 16px rgba(0,118,182,0.18);">
             <div style="display:flex; align-items:center; gap:14px;">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="40" height="40" rx="10" fill="#0076B6"/>
-                <polygon points="20,8 31,14 31,26 20,32 9,26 9,14" fill="none" stroke="#00B4D8" stroke-width="2"/>
-                <circle cx="20" cy="20" r="4.5" fill="#00B4D8"/>
-                <line x1="20" y1="11" x2="20" y2="15" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-                <line x1="20" y1="25" x2="20" y2="29" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-                <line x1="11" y1="20" x2="15" y2="20" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-                <line x1="25" y1="20" x2="29" y2="20" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
+              <img src="/logo.png" alt="SafeNode" style="height:44px; width:auto; object-fit:contain;">
               <div>
                 <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">SafeNode SAS</div>
                 <div style="color:#f1f5f9; font-size:16px; font-weight:700; letter-spacing:0.3px;">SISTEMA CONTABLE — TRANSPORTES SARVI</div>
