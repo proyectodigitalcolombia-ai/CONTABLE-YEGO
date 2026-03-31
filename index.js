@@ -17,6 +17,14 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+  // Serve SafeNode logo
+  const _logoData = require('fs').readFileSync(require('path').join(__dirname, 'logo-safenode.png'));
+  app.get('/logo.png', (req, res) => {
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(_logoData);
+  });
+
 const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
