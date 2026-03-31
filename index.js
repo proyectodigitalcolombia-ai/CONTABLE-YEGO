@@ -341,7 +341,7 @@ app.get('/', async (req, res) => {
                 <line x1="25" y1="20" x2="29" y2="20" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
               <div>
-                <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">SafeNode ITR</div>
+                <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">SafeNode SAS</div>
                 <div style="color:#f1f5f9; font-size:16px; font-weight:700; letter-spacing:0.3px;">SISTEMA CONTABLE — TRANSPORTES SARVI</div>
               </div>
             </div>
