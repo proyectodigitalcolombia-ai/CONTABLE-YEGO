@@ -127,7 +127,7 @@ app.get('/', async (req, res) => {
       }
 
       let displayDiasSinCumplir = '0 días';
-      let colorDiasSinCumplir = '#3b82f6';
+      let colorDiasSinCumplir = '#0076B6';
 
       if (valorTipoCumplido === "VIRTUAL" || valorTipoCumplido === "FÍSICO") {
           displayDiasSinCumplir = 'VIAJE CUMPLIDO';
@@ -156,8 +156,8 @@ app.get('/', async (req, res) => {
           displayDiasSinCumplir = "0 días";
       }
 
-      const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #334155; white-space: nowrap;`;
-      const selStyle = `background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
+      const tdStyle = `padding: 10px; text-align: center; border-right: 1px solid #1a3d56; white-space: nowrap;`;
+      const selStyle = `background: #0D1117; color: white; border: 1px solid #1a3d56; border-radius: 4px; font-size: 10px; padding: 2px; cursor: pointer;`;
 
       const renderSelectEntrega = (campo, valorActual) => `
         <select onchange="actualizarEntrega(${c.id}, '${campo}', this.value)" style="${selStyle}">
@@ -168,7 +168,7 @@ app.get('/', async (req, res) => {
       `;
 
       return `
-        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #334155; font-size: 11px;">
+        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #1a3d56; font-size: 11px;">
           <td style="${tdStyle} color: #94a3b8;">#${c.id}</td>
           <td style="${tdStyle}">${fechaRegistro}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
@@ -180,7 +180,7 @@ app.get('/', async (req, res) => {
           <td style="${tdStyle} background: rgba(59, 130, 246, 0.1); font-weight: bold;">${c.placa}</td>
           <td style="${tdStyle}">${c.muc || '---'}</td>
           <td style="${tdStyle} color: #10b981; font-weight: bold;">$${fletePagar.toLocaleString('es-CO')}</td>
-          <td style="${tdStyle} color: #3b82f6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
+          <td style="${tdStyle} color: #0076B6;">$${fleteFacturar.toLocaleString('es-CO')}</td>
           <td style="${tdStyle}">${c.f_act || '---'}</td>
           <td style="${tdStyle} color: #fbbf24;">${c.est_real || '---'}</td>
           <td style="${tdStyle}">
@@ -203,7 +203,7 @@ app.get('/', async (req, res) => {
                 type="text" 
                 id="input-sobre-${c.id}"
                 value="$${Number(f.sobre_anticipo || 0).toLocaleString('es-CO')}" 
-                style="background: #0f172a; color: #fbbf24; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
+                style="background: #0D1117; color: #fbbf24; border: 1px solid #1a3d56; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none;"
                 onfocus="this.type='number'; this.value='${f.sobre_anticipo || 0}'"
                 onblur="formatToMoney(${c.id}, this)"
             >
@@ -247,7 +247,7 @@ app.get('/', async (req, res) => {
             <div id="obs-${c.id}" 
                  contenteditable="${f.presenta_novedades === 'SI'}" 
                  onblur="actualizarEntrega(${c.id}, 'obs_novedad', this.innerText)"
-                 style="min-width: 100px; padding: 2px; border: ${f.presenta_novedades === 'SI' ? '1px solid #3b82f6' : 'none'}; border-radius: 4px;">
+                 style="min-width: 100px; padding: 2px; border: ${f.presenta_novedades === 'SI' ? '1px solid #0076B6' : 'none'}; border-radius: 4px;">
               ${f.presenta_novedades === 'SI' ? (f.obs_novedad || '') : '---'}
             </div>
           </td>
@@ -256,7 +256,7 @@ app.get('/', async (req, res) => {
                 type="text" 
                 id="input-desc-${c.id}"
                 value="$${Number(f.valor_descuento || 0).toLocaleString('es-CO')}" 
-                style="background: #0f172a; color: #ef4444; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
+                style="background: #0D1117; color: #ef4444; border: 1px solid #1a3d56; border-radius: 4px; font-size: 11px; padding: 4px; width: 100px; text-align: center; outline: none; display: ${f.presenta_novedades === 'SI' ? 'inline-block' : 'none'};"
                 onfocus="this.type='number'; this.value='${f.valor_descuento || 0}'"
                 onblur="formatToMoneyDesc(${c.id}, this)"
             >
@@ -266,7 +266,7 @@ app.get('/', async (req, res) => {
             <input 
                 type="date" 
                 value="${f.fecha_cump_docs || ''}" 
-                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
+                style="background: #0D1117; color: white; border: 1px solid #1a3d56; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
                 onchange="actualizarEntrega(${c.id}, 'fecha_cump_docs', this.value); calcularDiasSinPagar(this, 'dias-pago-${c.id}')"
             >
             </td>
@@ -274,7 +274,7 @@ app.get('/', async (req, res) => {
             <input 
                 type="date" 
                 value="${f.fecha_legalizacion || ''}" 
-                style="background: #0f172a; color: white; border: 1px solid #334155; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
+                style="background: #0D1117; color: white; border: 1px solid #1a3d56; border-radius: 4px; font-size: 11px; padding: 2px; outline: none; cursor: pointer; color-scheme: dark;"
                 onchange="actualizarEntrega(${c.id}, 'fecha_legalizacion', this.value)"
             >
             </td>
@@ -296,7 +296,7 @@ app.get('/', async (req, res) => {
 <td style="${tdStyle}">
   <select 
     onchange="actualizarEstadoFinal(${c.id}, this.value)" 
-    style="${selStyle} width: 100%; border: 1px solid ${f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#334155'};">
+    style="${selStyle} width: 100%; border: 1px solid ${f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#1a3d56'};">
     <option value="PENDIENTE" ${f.estado_final === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
     <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
   </select>
@@ -315,21 +315,45 @@ app.get('/', async (req, res) => {
         </tr>`;
     }).join('');
 
-    const thStyle = `padding: 15px 10px; text-align: center; border-right: 1px solid #475569; border-bottom: 2px solid #3b82f6; white-space: nowrap;`;
+    const thStyle = `padding: 15px 10px; text-align: center; border-right: 1px solid #1a3d56; border-bottom: 2px solid #0076B6; white-space: nowrap;`;
 
     res.send(`
-      <body style="background:#0f172a; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
-          <h2 style="margin:0; color: #3b82f6;">TRANSPORTES SARVI - SISTEMA CONTABLE</h2>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          * { font-family: 'Inter', 'Segoe UI', sans-serif; }
+          ::-webkit-scrollbar { width: 8px; height: 8px; }
+          ::-webkit-scrollbar-track { background: #0D1117; }
+          ::-webkit-scrollbar-thumb { background: #0076B6; border-radius: 4px; }
+          ::-webkit-scrollbar-thumb:hover { background: #00B4D8; }
+          input[type=text]:focus, input[type=date]:focus, select:focus { outline: 1px solid #0076B6 !important; }
+          .fila-carga:hover td { background: rgba(0,118,182,0.06) !important; }
+        </style>
+        <body style="background:#0D1117; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: linear-gradient(135deg, #0d1e30 0%, #001e3c 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #1a3d56; box-shadow: 0 2px 16px rgba(0,118,182,0.18);">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="40" height="40" rx="10" fill="#0076B6"/>
+                <polygon points="20,8 31,14 31,26 20,32 9,26 9,14" fill="none" stroke="#00B4D8" stroke-width="2"/>
+                <circle cx="20" cy="20" r="4.5" fill="#00B4D8"/>
+                <line x1="20" y1="11" x2="20" y2="15" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="20" y1="25" x2="20" y2="29" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="11" y1="20" x2="15" y2="20" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="25" y1="20" x2="29" y2="20" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">SafeNode ITR</div>
+                <div style="color:#f1f5f9; font-size:16px; font-weight:700; letter-spacing:0.3px;">SISTEMA CONTABLE — TRANSPORTES SARVI</div>
+              </div>
+            </div>
           <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
             <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
             <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
-        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:white; outline: none;">
-        <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
-          <table style="width:100%; border-collapse:collapse; background:#1e293b; min-width: 6500px;">
-            <thead style="background:#1e40af; color: white; font-size: 10px; text-transform: uppercase;">
+        <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #1a3d56; background:#0d1e30; color:white; outline: none;">
+        <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #1a3d56;">
+          <table style="width:100%; border-collapse:collapse; background:#0d1e30; min-width: 6500px;">
+            <thead style="background:#003d6b; color: white; font-size: 10px; text-transform: uppercase;">
               <tr>
                 <th style="${thStyle}">ID</th><th style="${thStyle}">FECHA REGISTRO</th><th style="${thStyle}">OFICINA</th>
                 <th style="${thStyle}">ORIGEN</th><th style="${thStyle}">DESTINO</th><th style="${thStyle}">CLIENTE</th>
@@ -358,26 +382,26 @@ app.get('/', async (req, res) => {
         </div>
 
         <div id="modalLiquidacion" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
-          <div style="background:#1e293b; width:80%; max-width:800px; padding:20px; border-radius:12px; border:1px solid #334155; position:relative; max-height:90vh; overflow-y:auto;">
+          <div style="background:#0d1e30; width:80%; max-width:800px; padding:20px; border-radius:12px; border:1px solid #1a3d56; position:relative; max-height:90vh; overflow-y:auto;">
             <button onclick="cerrarModal()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
-            <h2 style="color:#3b82f6; border-bottom:1px solid #334155; padding-bottom:10px;">FORMATO DE LIQUIDACIÓN</h2>
+            <h2 style="color:#0076B6; border-bottom:1px solid #1a3d56; padding-bottom:10px;">FORMATO DE LIQUIDACIÓN</h2>
             
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
               <div>
                 <label style="display:block; font-size:12px; color:#94a3b8;">PLACA</label>
-                <input type="text" id="form-placa" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:white; padding:8px; border-radius:4px;">
+                <input type="text" id="form-placa" readonly style="width:100%; background:#0D1117; border:1px solid #1a3d56; color:white; padding:8px; border-radius:4px;">
               </div>
               <div>
                 <label style="display:block; font-size:12px; color:#94a3b8;">FLETE PACTADO</label>
-                <input type="text" id="form-flete" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:#10b981; padding:8px; border-radius:4px; font-weight:bold;">
+                <input type="text" id="form-flete" readonly style="width:100%; background:#0D1117; border:1px solid #1a3d56; color:#10b981; padding:8px; border-radius:4px; font-weight:bold;">
               </div>
               <div>
                 <label style="display:block; font-size:12px; color:#94a3b8;">ORIGEN - DESTINO</label>
-                <input type="text" id="form-ruta" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:white; padding:8px; border-radius:4px;">
+                <input type="text" id="form-ruta" readonly style="width:100%; background:#0D1117; border:1px solid #1a3d56; color:white; padding:8px; border-radius:4px;">
               </div>
               <div>
                 <label style="display:block; font-size:12px; color:#94a3b8;">DÍAS DE MORA</label>
-                <input type="text" id="form-dias" readonly style="width:100%; background:#0f172a; border:1px solid #334155; color:#ef4444; padding:8px; border-radius:4px;">
+                <input type="text" id="form-dias" readonly style="width:100%; background:#0D1117; border:1px solid #1a3d56; color:#ef4444; padding:8px; border-radius:4px;">
               </div>
             </div>
 
@@ -540,7 +564,7 @@ app.get('/', async (req, res) => {
             if(valor === "SI") {
                 divObs.contentEditable = "true";
                 divObs.innerText = "";
-                divObs.style.border = "1px solid #3b82f6";
+                divObs.style.border = "1px solid #0076B6";
                 inputDesc.style.display = "inline-block";
                 spanDesc.style.display = "none";
             } else {
