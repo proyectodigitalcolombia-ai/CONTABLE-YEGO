@@ -60,6 +60,7 @@ const Finanza = db.define('Finanza', {
   retefuente: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   reteica: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   fopat: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
+  fopat_aplica: { type: DataTypes.STRING, defaultValue: 'SI' },
   saldo_a_pagar: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   estado_final: { type: DataTypes.STRING, defaultValue: 'PENDIENTE' },
   dias_sin_pagar: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -295,7 +296,16 @@ app.get('/', async (req, res) => {
     return '$' + Math.round(fBase * tarifa).toLocaleString('es-CO');
   })()}
 </td>
-          <td id="fopat-${c.id}" style="${tdStyle} color: #fbbf24;">${Math.round(fletePagar * 0.001).toLocaleString('es-CO')}</td>
+          <td id="fopat-${c.id}" style="${tdStyle} color: ${(f.fopat_aplica||'SI')==='SI' ? '#fbbf24' : '#6b7280'}; text-align:center;">
+  <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+    <span id="fopat-val-${c.id}">$${(f.fopat_aplica||'SI')==='NO' ? '0' : Math.round(fletePagar * 0.001).toLocaleString('es-CO')}</span>
+    <button onclick="toggleFopat(${c.id})" id="fopat-btn-${c.id}"
+      style="font-size:9px; padding:2px 5px; border-radius:3px; border:none; cursor:pointer; font-weight:bold;
+             background:${(f.fopat_aplica||'SI')==='SI' ? '#059669' : '#6b7280'}; color:white; white-space:nowrap;">
+      ${(f.fopat_aplica||'SI')==='SI' ? 'APLICA' : 'NO APLICA'}
+    </button>
+  </div>
+</td>
           <td id="saldo-${c.id}" data-saldo="${Number(f.saldo_a_pagar || 0)}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
 <td style="${tdStyle}">
   <select 
@@ -466,8 +476,8 @@ app.get('/', async (req, res) => {
                     saldoEl.innerText = String.fromCharCode(36) + Math.round(data.saldo).toLocaleString('es-CO');
                     saldoEl.dataset.saldo = Math.round(data.saldo);
                   }
-                  const fopatEl = document.getElementById('fopat-' + cargaId);
-                  if (fopatEl) fopatEl.innerText = String.fromCharCode(36) + Math.round(data.fopat).toLocaleString('es-CO');
+                  const fopatValEl = document.getElementById('fopat-val-' + cargaId);
+                  if (fopatValEl) fopatValEl.innerText = String.fromCharCode(36) + Math.round(data.fopat).toLocaleString('es-CO');
                   recalcularTotal();
                 }
               }
@@ -619,6 +629,32 @@ app.get('/', async (req, res) => {
             input.value = '$' + Number(numValue).toLocaleString('es-CO');
             await actualizarEntrega(cargaId, 'valor_descuento', numValue);
         }
+  async function toggleFopat(cargaId) {
+    const btn = document.getElementById('fopat-btn-' + cargaId);
+    if (!btn) return;
+    const actual = btn.textContent.trim();
+    const nuevo = actual === 'APLICA' ? 'NO' : 'SI';
+    try {
+      const res = await fetch('/actualizar-entrega', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cargaId, campo: 'fopat_aplica', valor: nuevo })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        btn.textContent = nuevo === 'SI' ? 'APLICA' : 'NO APLICA';
+        btn.style.background = nuevo === 'SI' ? '#059669' : '#6b7280';
+        const cell = document.getElementById('fopat-' + cargaId);
+        if (cell) cell.style.color = nuevo === 'SI' ? '#fbbf24' : '#6b7280';
+        const fopatValEl = document.getElementById('fopat-val-' + cargaId);
+        if (fopatValEl) fopatValEl.innerText = String.fromCharCode(36) + Math.round(data.fopat).toLocaleString('es-CO');
+        const saldoEl = document.getElementById('saldo-' + cargaId);
+        if (saldoEl) { saldoEl.innerText = String.fromCharCode(36) + Math.round(data.saldo).toLocaleString('es-CO'); saldoEl.dataset.saldo = Math.round(data.saldo); }
+        recalcularTotal();
+      }
+    } catch(e) { console.error('Error toggle fopat', e); }
+  }
+
   async function actualizarEstadoFinal(cargaId, nuevoEstado) {
   try {
     const response = await fetch('/actualizar-entrega', {
@@ -655,11 +691,23 @@ app.post('/actualizar-entrega', async (req, res) => {
       const ant = Number(f?.valor_anticipo || 0);
       const rf = Number(f?.retefuente || 0);
       const ri = Number(f?.reteica || 0);
-      const fopat = Math.round(fBase * 0.001);
+      const fopatAplica = (f?.fopat_aplica || 'SI') === 'SI';
+      const fopat = fopatAplica ? Math.round(fBase * 0.001) : 0;
       const nuevoSobre = campo === 'sobre_anticipo' ? Number(valor) : Number(f?.sobre_anticipo || 0);
       const nuevoDesc = campo === 'valor_descuento' ? Number(valor) : Number(f?.valor_descuento || 0);
       updateData.fopat = fopat;
       updateData.saldo_a_pagar = fBase - rf - ri - ant - nuevoSobre - nuevoDesc - fopat;
+    }
+    if (campo === 'fopat_aplica') {
+      const fBase = Number(f?.v_flete || 0);
+      const ant = Number(f?.valor_anticipo || 0);
+      const rf = Number(f?.retefuente || 0);
+      const ri = Number(f?.reteica || 0);
+      const sobre = Number(f?.sobre_anticipo || 0);
+      const desc = Number(f?.valor_descuento || 0);
+      const fopat = valor === 'SI' ? Math.round(fBase * 0.001) : 0;
+      updateData.fopat = fopat;
+      updateData.saldo_a_pagar = fBase - rf - ri - ant - sobre - desc - fopat;
     }
 
     // Auto-cambiar tipo_cumplido a VIRTUAL cuando llega un PDF
