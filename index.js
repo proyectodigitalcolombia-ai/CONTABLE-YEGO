@@ -296,10 +296,10 @@ app.get('/', async (req, res) => {
   })()}
 </td>
           <td id="fopat-${c.id}" style="${tdStyle} color: #fbbf24;">${Math.round(fletePagar * 0.001).toLocaleString('es-CO')}</td>
-          <td id="saldo-${c.id}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
+          <td id="saldo-${c.id}" data-saldo="${Number(f.saldo_a_pagar || 0)}" style="${tdStyle} background: rgba(16, 185, 129, 0.1); font-weight: bold; color: #10b981;">$${Number(f.saldo_a_pagar || 0).toLocaleString('es-CO')}</td>
 <td style="${tdStyle}">
   <select 
-    onchange="actualizarEstadoFinal(${c.id}, this.value)" 
+    id="select-estado-${c.id}" onchange="actualizarEstadoFinal(${c.id}, this.value)" 
     style="${selStyle} width: 100%; border: 1px solid ${f.estado_final === 'TRANSFERIDO' ? '#10b981' : '#1a3d56'};">
     <option value="PENDIENTE" ${f.estado_final === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
     <option value="TRANSFERIDO" ${f.estado_final === 'TRANSFERIDO' ? 'selected' : ''}>TRANSFERIDO</option>
@@ -343,7 +343,7 @@ app.get('/', async (req, res) => {
             </div>
           <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
             <small style="color:#ef4444; font-weight: bold;">TOTAL POR PAGAR:</small><br>
-            <b style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
+            <b id="total-pendiente" style="color:#f1f5f9; font-size: 20px;">$ ${totalPendiente.toLocaleString('es-CO')}</b>
           </div>
         </div>
         <input type="text" id="buscador" placeholder="🔍 Filtrar por placa..." style="width:100%; padding:12px; margin-bottom:15px; border-radius:6px; border:1px solid #1a3d56; background:#0d1e30; color:white; outline: none;">
@@ -458,10 +458,33 @@ app.get('/', async (req, res) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cargaId, campo, valor })
               });
-              if(res.ok && (campo === 'sobre_anticipo' || campo === 'valor_descuento')) {
-                location.reload(); 
+              if (res.ok) {
+                if (campo === 'sobre_anticipo' || campo === 'valor_descuento') {
+                  const data = await res.json();
+                  const saldoEl = document.getElementById('saldo-' + cargaId);
+                  if (saldoEl) {
+                    saldoEl.innerText = String.fromCharCode(36) + Math.round(data.saldo).toLocaleString('es-CO');
+                    saldoEl.dataset.saldo = Math.round(data.saldo);
+                  }
+                  const fopatEl = document.getElementById('fopat-' + cargaId);
+                  if (fopatEl) fopatEl.innerText = String.fromCharCode(36) + Math.round(data.fopat).toLocaleString('es-CO');
+                  recalcularTotal();
+                }
               }
             } catch (e) { console.error("Error al actualizar entrega", e); }
+          }
+
+          function recalcularTotal() {
+            let total = 0;
+            document.querySelectorAll('.fila-carga').forEach(fila => {
+              if (fila.style.display === 'none') return;
+              const estadoSel = fila.querySelector('select[id^="select-estado-"]');
+              if (estadoSel && estadoSel.value === 'TRANSFERIDO') return;
+              const saldoEl = fila.querySelector('[id^="saldo-"]');
+              if (saldoEl) total += parseFloat(saldoEl.dataset.saldo || 0);
+            });
+            const el = document.getElementById('total-pendiente');
+            if (el) el.innerText = String.fromCharCode(36) + ' ' + Math.round(total).toLocaleString('es-CO');
           }
 
           async function actualizarAnticipoRapido(cargaId, valorSeleccionado, flete, origen) {
@@ -546,7 +569,14 @@ app.get('/', async (req, res) => {
                 })
               });
               if (response.ok) {
-                location.reload(); 
+                const data = await response.json();
+                const fechaEl = document.getElementById('fecha-virtual-' + cargaId);
+                if (fechaEl && data.fecha_cump_virtual) fechaEl.innerText = data.fecha_cump_virtual;
+                const diasEl = document.getElementById('dias-cumplir-' + cargaId);
+                if (diasEl && (nuevoTipo === 'VIRTUAL' || nuevoTipo === 'FÍSICO')) {
+                  diasEl.innerText = 'VIAJE CUMPLIDO';
+                  diasEl.style.color = '#10b981';
+                }
               }
             } catch (e) { 
               console.error("Error al guardar tipo cumplido", e); 
@@ -601,7 +631,9 @@ app.get('/', async (req, res) => {
       })
     });
     if (response.ok) {
-       location.reload(); 
+      const sel = document.getElementById('select-estado-' + cargaId);
+      if (sel) sel.style.border = '1px solid ' + (nuevoEstado === 'TRANSFERIDO' ? '#10b981' : '#1a3d56');
+      recalcularTotal();
     }
   } catch (e) {
     console.error("Error:", e);
@@ -643,6 +675,12 @@ app.post('/actualizar-entrega', async (req, res) => {
     }
 
     await Finanza.upsert({ cargaId, ...updateData });
+    if (updateData.saldo_a_pagar !== undefined) {
+      return res.json({ saldo: updateData.saldo_a_pagar, fopat: updateData.fopat || 0 });
+    }
+    if (updateData.tipo_cumplido === 'VIRTUAL') {
+      return res.json({ tipo_cumplido: 'VIRTUAL', fecha_cump_virtual: updateData.fecha_cump_virtual });
+    }
     res.sendStatus(200);
   } catch (error) { res.status(500).send(error.message); }
 });
@@ -711,7 +749,7 @@ app.post('/actualizar-tipo-cumplido', async (req, res) => {
     }
     
     await Finanza.upsert(updateData);
-    res.sendStatus(200);
+    res.json({ fecha_cump_virtual: updateData.fecha_cump_virtual || null });
   } catch (error) { res.status(500).send(error.message); }
 });
 
