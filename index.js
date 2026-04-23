@@ -25,7 +25,53 @@ app.use(express.json());
     res.send(_logoData);
   });
 
-const db = new Sequelize(process.env.DATABASE_URL, {
+
+  // ── ENDPOINT DE SINCRONIZACIÓN — Recibe cargas desde Transcontrol ─────────────
+  app.post('/api/sync-carga', async (req, res) => {
+    try {
+      const apiKey = req.headers['x-sync-key'];
+      const expectedKey = process.env.SYNC_API_KEY;
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: 'No autorizado' });
+      }
+      const { id, placa, muc, cont, cli, orig, dest, f_p, f_f, est_real, oficina, ped } = req.body;
+      if (!placa) return res.status(400).json({ error: 'placa requerida' });
+
+      // Buscar si ya existe un registro con ese cont (contenedor)
+      const existing = cont ? await db.query(
+        'SELECT id FROM "Cargas" WHERE cont = :cont LIMIT 1',
+        { replacements: { cont }, type: QueryTypes.SELECT }
+      ) : [];
+
+      if (existing.length > 0) {
+        await db.query(
+          `UPDATE "Cargas" SET placa=:placa, muc=:muc, est_real=:est_real, f_act=now() WHERE id=:existId`,
+          { replacements: { placa, muc: muc || null, est_real: est_real || 'DESPACHADO', existId: existing[0].id }, type: QueryTypes.UPDATE }
+        );
+      } else {
+        await db.query(
+          `INSERT INTO "Cargas" (placa, muc, cont, cli, orig, dest, f_p, f_f, est_real, oficina, ped, f_act, "createdAt", "updatedAt")
+           VALUES (:placa, :muc, :cont, :cli, :orig, :dest, :f_p, :f_f, :est_real, :oficina, :ped, now(), now(), now())`,
+          {
+            replacements: {
+              placa, muc: muc || null, cont: cont || null, cli: cli || null,
+              orig: orig || null, dest: dest || null,
+              f_p: f_p || 0, f_f: f_f || 0,
+              est_real: est_real || 'DESPACHADO',
+              oficina: oficina || null, ped: ped || null
+            },
+            type: QueryTypes.INSERT
+          }
+        );
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('[sync-carga] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  const db = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
   dialectOptions: { ssl: { require: true, rejectUnauthorized: false } }
@@ -345,10 +391,10 @@ app.get('/', async (req, res) => {
         <body style="background:#0D1117; color:#f1f5f9; font-family: 'Segoe UI', sans-serif; padding:15px; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background: linear-gradient(135deg, #0d1e30 0%, #001e3c 100%); padding: 14px 18px; border-radius: 10px; border: 1px solid #1a3d56; box-shadow: 0 2px 16px rgba(0,118,182,0.18);">
             <div style="display:flex; align-items:center; gap:14px;">
-              <img src="/logo.png" alt="SafeNode" style="height:44px; width:auto; object-fit:contain;">
+              <img src="/logo.png" alt="TRANS GCL" style="height:44px; width:auto; object-fit:contain;">
               <div>
-                <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">SafeNode SAS</div>
-                <div style="color:#f1f5f9; font-size:16px; font-weight:700; letter-spacing:0.3px;">SISTEMA CONTABLE — TRANSPORTES SARVI</div>
+                <div style="color:#00B4D8; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px;">TRANS GCL S.A.S.</div>
+                <div style="color:#f1f5f9; font-size:16px; font-weight:700; letter-spacing:0.3px;">SISTEMA CONTABLE — TRANS GCL S.A.S.</div>
               </div>
             </div>
           <div style="text-align: right; background: rgba(239, 68, 68, 0.1); padding: 5px 15px; border-radius: 6px; border: 1px solid #ef4444;">
