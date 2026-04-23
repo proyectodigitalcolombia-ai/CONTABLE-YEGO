@@ -222,7 +222,7 @@ app.get('/', async (req, res) => {
       `;
 
       return `
-        <tr class="fila-carga" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #1a3d56; font-size: 11px;">
+        <tr class="fila-carga" data-cid="${c.id}" data-placa="${(c.placa || '').toLowerCase()}" style="border-bottom: 1px solid #1a3d56; font-size: 11px;">
           <td style="${tdStyle} color: #94a3b8;">#${c.id}</td>
           <td style="${tdStyle}">${fechaRegistro}</td>
           <td style="${tdStyle}">${c.oficina || '---'}</td>
@@ -376,6 +376,9 @@ app.get('/', async (req, res) => {
               }
             </div>
           </td>
+          <td style="${tdStyle} min-width:80px;">
+            <button onclick="confirmarEliminar(${c.id})" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid #ef4444; border-radius:6px; padding:5px 10px; font-size:10px; font-weight:700; cursor:pointer;">🗑 ELIMINAR</button>
+          </td>
         </tr>`;
     }).join('');
 
@@ -470,7 +473,55 @@ app.get('/', async (req, res) => {
         </div>
         
         <script>
-        function abrirLiquidacion(c, f) {
+
+          // ── Eliminar con contraseña ────────────────────────────────────────
+          let _idEliminar = null;
+          function confirmarEliminar(id) {
+            _idEliminar = id;
+            document.getElementById('inputClave').value = '';
+            document.getElementById('errClave').style.display = 'none';
+            document.getElementById('modalEliminar').style.display = 'flex';
+            setTimeout(() => document.getElementById('inputClave').focus(), 100);
+          }
+          function cerrarModalEliminar() {
+            document.getElementById('modalEliminar').style.display = 'none';
+            _idEliminar = null;
+          }
+          async function ejecutarEliminar() {
+            const clave = document.getElementById('inputClave').value;
+            if (!clave) return;
+            const btn = document.getElementById('btnEliminar');
+            btn.disabled = true; btn.innerText = 'Eliminando...';
+            try {
+              const res = await fetch('/eliminar-registro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: _idEliminar, clave })
+              });
+              if (res.ok) {
+                const fila = document.querySelector('tr[data-cid="' + _idEliminar + '"]');
+                if (fila) fila.remove();
+                cerrarModalEliminar();
+              } else {
+                const d = await res.json();
+                const err = document.getElementById('errClave');
+                err.innerText = d.error || 'Contraseña incorrecta';
+                err.style.display = 'block';
+              }
+            } catch(e) {
+              document.getElementById('errClave').innerText = 'Error de red';
+              document.getElementById('errClave').style.display = 'block';
+            }
+            btn.disabled = false; btn.innerText = 'Confirmar y Eliminar';
+          }
+          document.addEventListener('keydown', function(e) {
+            if (document.getElementById('modalEliminar').style.display === 'flex') {
+              if (e.key === 'Enter') ejecutarEliminar();
+              if (e.key === 'Escape') cerrarModalEliminar();
+            }
+          });
+
+          function abrirLiquidacion(c, f) {
             document.getElementById('form-placa').value = c.placa;
             document.getElementById('form-flete').value = '$' + (f.v_flete || c.f_p || 0).toLocaleString('es-CO');
             document.getElementById('form-ruta').value = (c.orig || '') + ' -> ' + (c.dest || '');
@@ -726,7 +777,21 @@ app.get('/', async (req, res) => {
   }
 }
         </script>
-      </body>`);
+      <!-- Modal eliminar con contraseña -->
+        <div id="modalEliminar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;justify-content:center;align-items:center;">
+          <div style="background:#0d1e30;border:1px solid #ef4444;border-radius:12px;padding:32px 28px;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(239,68,68,0.3);">
+            <h3 style="color:#ef4444;margin:0 0 8px 0;font-size:16px;">⚠️ Eliminar Registro</h3>
+            <p style="color:#94a3b8;font-size:13px;margin:0 0 20px 0;">Esta acción es <strong style="color:#f1f5f9;">irreversible</strong>. Ingresa la contraseña de administrador.</p>
+            <input id="inputClave" type="password" placeholder="Contraseña de administrador" autocomplete="off"
+              style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid #334155;background:#0D1117;color:white;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px;">
+            <div id="errClave" style="display:none;color:#ef4444;font-size:12px;margin-bottom:12px;font-weight:600;"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+              <button onclick="cerrarModalEliminar()" style="background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;">Cancelar</button>
+              <button id="btnEliminar" onclick="ejecutarEliminar()" style="background:#ef4444;color:white;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700;">Confirmar y Eliminar</button>
+            </div>
+          </div>
+        </div>
+        </body>`);
   } catch (err) { res.status(500).send("Error: " + err.message); }
 });
 
