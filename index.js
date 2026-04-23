@@ -17,12 +17,16 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-  // Serve SafeNode logo
-  const _logoData = require('fs').readFileSync(require('path').join(__dirname, 'logo-safenode.png'));
+  // Serve logo TRANS GCL (sin caché para reflejar cambios inmediatamente)
   app.get('/logo.png', (req, res) => {
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(_logoData);
+    try {
+      const logoData = require('fs').readFileSync(require('path').join(__dirname, 'logo-safenode.png'));
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.send(logoData);
+    } catch (e) {
+      res.status(404).send('Logo not found');
+    }
   });
 
 
