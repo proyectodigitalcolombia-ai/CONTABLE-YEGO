@@ -895,7 +895,29 @@ app.post('/actualizar-anticipo-directo', async (req, res) => {
 });
 
 // ENDPOINT ACTUALIZADO CON HORA EXACTA COLOMBIA
-app.post('/actualizar-tipo-cumplido', async (req, res) => {
+// ── ELIMINAR REGISTRO (requiere contraseña de administrador) ─────────────────
+  app.post('/eliminar-registro', async (req, res) => {
+    try {
+      const { id, clave } = req.body;
+      const claveAdmin = process.env.DELETE_PASSWORD;
+      if (!claveAdmin || clave !== claveAdmin) {
+        return res.status(403).json({ error: 'Contraseña incorrecta' });
+      }
+      if (!id) return res.status(400).json({ error: 'ID requerido' });
+      await db.query('DELETE FROM "Yego_Finanzas" WHERE "cargaId" = :id', {
+        replacements: { id }, type: QueryTypes.DELETE
+      });
+      await db.query('DELETE FROM "Cargas" WHERE id = :id', {
+        replacements: { id }, type: QueryTypes.DELETE
+      });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('[eliminar-registro]', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/actualizar-tipo-cumplido', async (req, res) => {
   try {
     const { cargaId, tipo_cumplido } = req.body;
     const updateData = { cargaId, tipo_cumplido };
