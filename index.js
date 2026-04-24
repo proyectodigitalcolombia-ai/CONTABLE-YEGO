@@ -33,6 +33,7 @@ app.use(express.json());
   // ── ENDPOINT DE SINCRONIZACIÓN — Recibe cargas desde Transcontrol ─────────────
   app.post('/api/sync-carga', async (req, res) => {
     try {
+      console.log('[sync-carga] REQUEST recibido — key:', req.headers['x-sync-key'] ? 'presente' : 'AUSENTE', '| body.placa:', req.body?.placa, '| ip:', req.ip);
       const apiKey = req.headers['x-sync-key'];
       const expectedKey = process.env.SYNC_API_KEY;
       if (!expectedKey || apiKey !== expectedKey) {
